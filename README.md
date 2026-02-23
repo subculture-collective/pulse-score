@@ -76,23 +76,23 @@ The frontend starts on http://localhost:5173.
 
 ### Backend (Makefile)
 
-| Command            | Description                    |
-| ------------------ | ------------------------------ |
-| `make build`       | Build the Go binary            |
-| `make run`         | Build and run the API          |
-| `make test`        | Run tests with race detection  |
-| `make lint`        | Run `go vet`                   |
-| `make dev-db`      | Start development PostgreSQL   |
-| `make dev-db-down` | Stop development PostgreSQL    |
-| `make migrate-up`  | Run database migrations up     |
-| `make migrate-down`| Roll back database migrations  |
+| Command             | Description                   |
+| ------------------- | ----------------------------- |
+| `make build`        | Build the Go binary           |
+| `make run`          | Build and run the API         |
+| `make test`         | Run tests with race detection |
+| `make lint`         | Run `go vet`                  |
+| `make dev-db`       | Start development PostgreSQL  |
+| `make dev-db-down`  | Stop development PostgreSQL   |
+| `make migrate-up`   | Run database migrations up    |
+| `make migrate-down` | Roll back database migrations |
 
 ### Frontend (web/)
 
-| Command             | Description                   |
-| ------------------- | ----------------------------- |
-| `npm run dev`       | Start Vite dev server         |
-| `npm run build`     | Production build              |
-| `npm run lint`      | ESLint check                  |
-| `npm run format`    | Format with Prettier          |
-| `npm run preview`   | Preview production build      |
+| Command           | Description              |
+| ----------------- | ------------------------ |
+| `npm run dev`     | Start Vite dev server    |
+| `npm run build`   | Production build         |
+| `npm run lint`    | ESLint check             |
+| `npm run format`  | Format with Prettier     |
+| `npm run preview` | Preview production build |
