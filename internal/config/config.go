@@ -15,6 +15,18 @@ type Config struct {
 	Rate     RateConfig
 	JWT      JWTConfig
 	SendGrid SendGridConfig
+	Stripe   StripeConfig
+}
+
+// StripeConfig holds Stripe OAuth and webhook settings.
+type StripeConfig struct {
+	ClientID         string
+	SecretKey        string
+	WebhookSecret    string
+	OAuthRedirectURL string
+	EncryptionKey    string // 32-byte hex-encoded AES key for token encryption
+	SyncIntervalMin  int
+	PaymentSyncDays  int
 }
 
 // SendGridConfig holds email sending settings.
@@ -98,6 +110,15 @@ func Load() *Config {
 			APIKey:      getEnv("SENDGRID_API_KEY", ""),
 			FromEmail:   getEnv("SENDGRID_FROM_EMAIL", "noreply@pulsescore.com"),
 			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+		},
+		Stripe: StripeConfig{
+			ClientID:         getEnv("STRIPE_CLIENT_ID", ""),
+			SecretKey:        getEnv("STRIPE_SECRET_KEY", ""),
+			WebhookSecret:    getEnv("STRIPE_WEBHOOK_SECRET", ""),
+			OAuthRedirectURL: getEnv("STRIPE_OAUTH_REDIRECT_URL", "http://localhost:8080/api/v1/integrations/stripe/callback"),
+			EncryptionKey:    getEnv("STRIPE_ENCRYPTION_KEY", ""),
+			SyncIntervalMin:  getInt("STRIPE_SYNC_INTERVAL_MIN", 15),
+			PaymentSyncDays:  getInt("STRIPE_PAYMENT_SYNC_DAYS", 90),
 		},
 	}
 }

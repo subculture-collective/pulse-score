@@ -115,6 +115,50 @@ func main() {
 			invitationSvc := service.NewInvitationService(pool.P, invitationRepo, orgRepo, userRepo, emailSvc, jwtMgr)
 			invitationHandler := handler.NewInvitationHandler(invitationSvc)
 
+			// Stripe integration repositories
+			connRepo := repository.NewIntegrationConnectionRepository(pool.P)
+			customerRepo := repository.NewCustomerRepository(pool.P)
+			subRepo := repository.NewStripeSubscriptionRepository(pool.P)
+			paymentRepo := repository.NewStripePaymentRepository(pool.P)
+			eventRepo := repository.NewCustomerEventRepository(pool.P)
+
+			// Stripe services
+			stripeOAuthSvc := service.NewStripeOAuthService(service.StripeOAuthConfig{
+				ClientID:         cfg.Stripe.ClientID,
+				SecretKey:        cfg.Stripe.SecretKey,
+				OAuthRedirectURL: cfg.Stripe.OAuthRedirectURL,
+				EncryptionKey:    cfg.Stripe.EncryptionKey,
+			}, connRepo)
+
+			stripeSyncSvc := service.NewStripeSyncService(
+				customerRepo, subRepo, paymentRepo, eventRepo,
+				stripeOAuthSvc, cfg.Stripe.PaymentSyncDays,
+			)
+
+			mrrSvc := service.NewMRRService(customerRepo, subRepo, eventRepo)
+			paymentHealthSvc := service.NewPaymentHealthService(paymentRepo, eventRepo, customerRepo)
+			_ = service.NewPaymentRecencyService(paymentRepo, subRepo) // used by health score computation
+
+			syncOrchestrator := service.NewSyncOrchestratorService(connRepo, stripeSyncSvc, mrrSvc)
+
+			stripeWebhookSvc := service.NewStripeWebhookService(
+				cfg.Stripe.WebhookSecret,
+				connRepo, customerRepo, subRepo, paymentRepo, eventRepo,
+				mrrSvc, paymentHealthSvc,
+			)
+
+			// Start background services
+			bgCtx, bgCancel := context.WithCancel(context.Background())
+			defer bgCancel()
+
+			if cfg.Stripe.SyncIntervalMin > 0 {
+				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, cfg.Stripe.SyncIntervalMin)
+				go syncScheduler.Start(bgCtx)
+			}
+
+			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, 60)
+			go connMonitor.Start(bgCtx)
+
 			r.Post("/auth/register", authHandler.Register)
 			r.Post("/auth/login", authHandler.Login)
 			r.Post("/auth/refresh", authHandler.Refresh)
@@ -123,6 +167,10 @@ func main() {
 
 			// Invitation acceptance (public — no auth required)
 			r.Post("/invitations/accept", invitationHandler.Accept)
+
+			// Stripe webhook (public — verified by signature)
+			webhookHandler := handler.NewWebhookStripeHandler(stripeWebhookSvc)
+			r.Post("/webhooks/stripe", webhookHandler.HandleWebhook)
 
 			// Protected routes (JWT required)
 			r.Group(func(r chi.Router) {
@@ -146,6 +194,17 @@ func main() {
 					r.Post("/", invitationHandler.Create)
 					r.Get("/", invitationHandler.List)
 					r.Delete("/{id}", invitationHandler.Revoke)
+				})
+
+				// Stripe integration routes (admin+ required)
+				stripeHandler := handler.NewIntegrationStripeHandler(stripeOAuthSvc, syncOrchestrator)
+				r.Route("/integrations/stripe", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Get("/connect", stripeHandler.Connect)
+					r.Get("/callback", stripeHandler.Callback)
+					r.Get("/status", stripeHandler.Status)
+					r.Delete("/", stripeHandler.Disconnect)
+					r.Post("/sync", stripeHandler.TriggerSync)
 				})
 			})
 		}

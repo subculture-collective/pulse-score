@@ -4,6 +4,8 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import BaseLayout from "@/components/BaseLayout";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
+import SettingsPage from "@/pages/settings/SettingsPage";
+import StripeCallbackPage from "@/pages/settings/StripeCallbackPage";
 
 function Dashboard() {
   return (
@@ -33,6 +35,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings/stripe/callback"
+            element={
+              <ProtectedRoute>
+                <StripeCallbackPage />
               </ProtectedRoute>
             }
           />
