@@ -1,8 +1,8 @@
-.PHONY: build run test lint clean migrate-up migrate-down migrate-create dev-db dev-db-down
+.PHONY: build run test lint clean migrate-up migrate-down migrate-down-all migrate-create seed dev-db dev-db-down
 
 BINARY_NAME=pulsescore-api
 BUILD_DIR=bin
-DATABASE_URL ?= postgres://pulsescore:pulsescore@localhost:5432/pulsescore_dev?sslmode=disable
+DATABASE_URL ?= postgres://pulsescore:pulsescore@localhost:5434/pulsescore_dev?sslmode=disable
 
 build:
 	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/api
@@ -25,6 +25,9 @@ migrate-up:
 migrate-down:
 	migrate -path migrations -database "$(DATABASE_URL)" down 1
 
+migrate-down-all:
+	migrate -path migrations -database "$(DATABASE_URL)" down -all
+
 migrate-create:
 	@if [ -z "$(NAME)" ]; then echo "Usage: make migrate-create NAME=my_migration"; exit 1; fi
 	migrate create -ext sql -dir migrations -seq $(NAME)
@@ -34,3 +37,6 @@ dev-db:
 
 dev-db-down:
 	docker compose -f docker-compose.dev.yml down
+
+seed:
+	psql "$(DATABASE_URL)" -f scripts/seed.sql

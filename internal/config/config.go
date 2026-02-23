@@ -27,9 +27,11 @@ type ServerConfig struct {
 
 // DatabaseConfig holds database connection settings.
 type DatabaseConfig struct {
-	URL          string
-	MaxOpenConns int
-	MaxIdleConns int
+	URL             string
+	MaxOpenConns    int
+	MaxIdleConns    int
+	MaxConnLifetime int // seconds
+	HealthCheckSec  int // seconds
 }
 
 // CORSConfig holds CORS middleware settings.
@@ -59,9 +61,11 @@ func Load() *Config {
 			IdleTimeout:  getDuration("IDLE_TIMEOUT", 120*time.Second),
 		},
 		Database: DatabaseConfig{
-			URL:          getEnv("DATABASE_URL", "postgres://pulsescore:pulsescore@localhost:5432/pulsescore_dev?sslmode=disable"),
-			MaxOpenConns: getInt("DB_MAX_OPEN_CONNS", 25),
-			MaxIdleConns: getInt("DB_MAX_IDLE_CONNS", 5),
+			URL:             getEnv("DATABASE_URL", "postgres://pulsescore:pulsescore@localhost:5434/pulsescore_dev?sslmode=disable"),
+			MaxOpenConns:    getInt("DB_MAX_OPEN_CONNS", 25),
+			MaxIdleConns:    getInt("DB_MAX_IDLE_CONNS", 5),
+			MaxConnLifetime: getInt("DB_MAX_CONN_LIFETIME", 3600),
+			HealthCheckSec:  getInt("DB_HEALTH_CHECK_SEC", 30),
 		},
 		CORS: CORSConfig{
 			AllowedOrigins: getEnvSlice("CORS_ALLOWED_ORIGINS", []string{"http://localhost:5173"}),

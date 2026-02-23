@@ -10,6 +10,7 @@ func clearEnv() {
 	for _, key := range []string{
 		"PORT", "HOST", "ENVIRONMENT", "DATABASE_URL",
 		"DB_MAX_OPEN_CONNS", "DB_MAX_IDLE_CONNS",
+		"DB_MAX_CONN_LIFETIME", "DB_HEALTH_CHECK_SEC",
 		"READ_TIMEOUT", "WRITE_TIMEOUT", "IDLE_TIMEOUT",
 		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_RPM",
 	} {
@@ -42,6 +43,12 @@ func TestLoadDefaults(t *testing.T) {
 	}
 	if cfg.Database.MaxIdleConns != 5 {
 		t.Errorf("expected max idle conns 5, got %d", cfg.Database.MaxIdleConns)
+	}
+	if cfg.Database.MaxConnLifetime != 3600 {
+		t.Errorf("expected max conn lifetime 3600, got %d", cfg.Database.MaxConnLifetime)
+	}
+	if cfg.Database.HealthCheckSec != 30 {
+		t.Errorf("expected health check sec 30, got %d", cfg.Database.HealthCheckSec)
 	}
 	if cfg.Rate.RequestsPerMinute != 100 {
 		t.Errorf("expected rate limit 100, got %d", cfg.Rate.RequestsPerMinute)
