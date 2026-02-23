@@ -22,6 +22,7 @@ import (
 	"github.com/onnwee/pulse-score/internal/middleware"
 	"github.com/onnwee/pulse-score/internal/repository"
 	"github.com/onnwee/pulse-score/internal/service"
+	"github.com/onnwee/pulse-score/internal/service/scoring"
 )
 
 func main() {
@@ -137,7 +138,7 @@ func main() {
 
 			mrrSvc := service.NewMRRService(customerRepo, subRepo, eventRepo)
 			paymentHealthSvc := service.NewPaymentHealthService(paymentRepo, eventRepo, customerRepo)
-			_ = service.NewPaymentRecencyService(paymentRepo, subRepo) // used by health score computation
+			paymentRecencySvc := service.NewPaymentRecencyService(paymentRepo, subRepo)
 
 			syncOrchestrator := service.NewSyncOrchestratorService(connRepo, stripeSyncSvc, mrrSvc)
 
@@ -147,6 +148,38 @@ func main() {
 				mrrSvc, paymentHealthSvc,
 			)
 
+			// Health scoring engine
+			scoringConfigRepo := repository.NewScoringConfigRepository(pool.P)
+			healthScoreRepo := repository.NewHealthScoreRepository(pool.P)
+
+			paymentRecencyFactor := scoring.NewPaymentRecencyFactor(paymentRecencySvc)
+			mrrTrendFactor := scoring.NewMRRTrendFactor(customerRepo, eventRepo)
+			failedPaymentsFactor := scoring.NewFailedPaymentsFactor(paymentHealthSvc, paymentRepo)
+			supportTicketsFactor := scoring.NewSupportTicketsFactor(eventRepo)
+			engagementFactor := scoring.NewEngagementFactor(eventRepo)
+
+			scoreAggregator := scoring.NewScoreAggregator(
+				[]scoring.ScoreFactor{
+					paymentRecencyFactor,
+					mrrTrendFactor,
+					failedPaymentsFactor,
+					supportTicketsFactor,
+					engagementFactor,
+				},
+				scoringConfigRepo,
+			)
+
+			changeDetector := scoring.NewChangeDetector(eventRepo, cfg.Scoring.ChangeDelta)
+			riskCategorizer := scoring.NewRiskCategorizer(healthScoreRepo)
+
+			scoreScheduler := scoring.NewScoreScheduler(
+				scoreAggregator, healthScoreRepo, customerRepo, connRepo, changeDetector,
+				time.Duration(cfg.Scoring.RecalcIntervalMin)*time.Minute,
+				cfg.Scoring.Workers,
+			)
+
+			scoringConfigSvc := scoring.NewConfigService(scoringConfigRepo, scoreScheduler)
+
 			// Start background services
 			bgCtx, bgCancel := context.WithCancel(context.Background())
 			defer bgCancel()
@@ -154,6 +187,10 @@ func main() {
 			if cfg.Stripe.SyncIntervalMin > 0 {
 				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, cfg.Stripe.SyncIntervalMin)
 				go syncScheduler.Start(bgCtx)
+			}
+
+			if cfg.Scoring.RecalcIntervalMin > 0 {
+				go scoreScheduler.Start(bgCtx)
 			}
 
 			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, 60)
@@ -205,6 +242,19 @@ func main() {
 					r.Get("/status", stripeHandler.Status)
 					r.Delete("/", stripeHandler.Disconnect)
 					r.Post("/sync", stripeHandler.TriggerSync)
+				})
+
+				// Health scoring routes
+				scoringHandler := handler.NewScoringHandler(scoringConfigSvc, riskCategorizer, scoreScheduler)
+				r.Route("/scoring", func(r chi.Router) {
+					r.Get("/risk-distribution", scoringHandler.GetRiskDistribution)
+					r.Get("/histogram", scoringHandler.GetScoreHistogram)
+					r.Post("/customers/{id}/recalculate", scoringHandler.RecalculateCustomer)
+					r.Route("/config", func(r chi.Router) {
+						r.Use(middleware.RequireRole("admin"))
+						r.Get("/", scoringHandler.GetConfig)
+						r.Put("/", scoringHandler.UpdateConfig)
+					})
 				})
 			})
 		}

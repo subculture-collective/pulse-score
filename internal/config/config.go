@@ -16,6 +16,14 @@ type Config struct {
 	JWT      JWTConfig
 	SendGrid SendGridConfig
 	Stripe   StripeConfig
+	Scoring  ScoringConfig
+}
+
+// ScoringConfig holds health score engine settings.
+type ScoringConfig struct {
+	RecalcIntervalMin int
+	Workers           int
+	ChangeDelta       float64
 }
 
 // StripeConfig holds Stripe OAuth and webhook settings.
@@ -119,6 +127,11 @@ func Load() *Config {
 			EncryptionKey:    getEnv("STRIPE_ENCRYPTION_KEY", ""),
 			SyncIntervalMin:  getInt("STRIPE_SYNC_INTERVAL_MIN", 15),
 			PaymentSyncDays:  getInt("STRIPE_PAYMENT_SYNC_DAYS", 90),
+		},
+		Scoring: ScoringConfig{
+			RecalcIntervalMin: getInt("SCORE_RECALC_INTERVAL_MIN", 60),
+			Workers:           getInt("SCORE_RECALC_WORKERS", 5),
+			ChangeDelta:       float64(getInt("SCORE_CHANGE_DELTA", 10)),
 		},
 	}
 }

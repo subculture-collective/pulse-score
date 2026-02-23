@@ -50,6 +50,61 @@ func (r *CustomerEventRepository) Upsert(ctx context.Context, e *CustomerEvent) 
 	return err
 }
 
+// ListByCustomerAndType returns events for a customer of a specific type since a given time.
+func (r *CustomerEventRepository) ListByCustomerAndType(ctx context.Context, customerID uuid.UUID, eventType string, since time.Time) ([]*CustomerEvent, error) {
+	query := `
+		SELECT id, org_id, customer_id, event_type, source, COALESCE(external_event_id, ''),
+			occurred_at, COALESCE(data, '{}'), created_at
+		FROM customer_events
+		WHERE customer_id = $1 AND event_type = $2 AND occurred_at >= $3
+		ORDER BY occurred_at DESC`
+
+	rows, err := r.pool.Query(ctx, query, customerID, eventType, since)
+	if err != nil {
+		return nil, fmt.Errorf("list customer events by type: %w", err)
+	}
+	defer rows.Close()
+
+	var events []*CustomerEvent
+	for rows.Next() {
+		e := &CustomerEvent{}
+		if err := rows.Scan(
+			&e.ID, &e.OrgID, &e.CustomerID, &e.EventType, &e.Source, &e.ExternalEventID,
+			&e.OccurredAt, &e.Data, &e.CreatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan customer event: %w", err)
+		}
+		events = append(events, e)
+	}
+	return events, rows.Err()
+}
+
+// CountEventsByTypeForOrg returns event counts per customer for a given event type and time window.
+func (r *CustomerEventRepository) CountEventsByTypeForOrg(ctx context.Context, orgID uuid.UUID, eventType string, since time.Time) (map[uuid.UUID]int, error) {
+	query := `
+		SELECT customer_id, COUNT(*)
+		FROM customer_events
+		WHERE org_id = $1 AND event_type = $2 AND occurred_at >= $3
+		GROUP BY customer_id`
+
+	rows, err := r.pool.Query(ctx, query, orgID, eventType, since)
+	if err != nil {
+		return nil, fmt.Errorf("count events by type for org: %w", err)
+	}
+	defer rows.Close()
+
+	counts := make(map[uuid.UUID]int)
+	for rows.Next() {
+		var customerID uuid.UUID
+		var count int
+		if err := rows.Scan(&customerID, &count); err != nil {
+			return nil, fmt.Errorf("scan event count: %w", err)
+		}
+		counts[customerID] = count
+	}
+	return counts, rows.Err()
+}
+
 // ListByCustomer returns events for a customer ordered by occurred_at desc.
 func (r *CustomerEventRepository) ListByCustomer(ctx context.Context, customerID uuid.UUID, limit int) ([]*CustomerEvent, error) {
 	query := `
