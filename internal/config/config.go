@@ -13,6 +13,22 @@ type Config struct {
 	Database DatabaseConfig
 	CORS     CORSConfig
 	Rate     RateConfig
+	JWT      JWTConfig
+	SendGrid SendGridConfig
+}
+
+// SendGridConfig holds email sending settings.
+type SendGridConfig struct {
+	APIKey      string
+	FromEmail   string
+	FrontendURL string
+}
+
+// JWTConfig holds JWT signing settings.
+type JWTConfig struct {
+	Secret     string
+	AccessTTL  time.Duration
+	RefreshTTL time.Duration
 }
 
 // ServerConfig holds HTTP server settings.
@@ -73,6 +89,16 @@ func Load() *Config {
 		Rate: RateConfig{
 			RequestsPerMinute: getInt("RATE_LIMIT_RPM", 100),
 		},
+		JWT: JWTConfig{
+			Secret:     getEnv("JWT_SECRET", "dev-secret-change-me-in-production"),
+			AccessTTL:  getDuration("JWT_ACCESS_TTL", 15*time.Minute),
+			RefreshTTL: getDuration("JWT_REFRESH_TTL", 7*24*time.Hour),
+		},
+		SendGrid: SendGridConfig{
+			APIKey:      getEnv("SENDGRID_API_KEY", ""),
+			FromEmail:   getEnv("SENDGRID_FROM_EMAIL", "noreply@pulsescore.com"),
+			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+		},
 	}
 }
 
@@ -81,6 +107,9 @@ func (c *Config) Validate() error {
 	if c.IsProd() {
 		if c.Database.URL == "" {
 			return fmt.Errorf("DATABASE_URL is required in production")
+		}
+		if c.JWT.Secret == "" || c.JWT.Secret == "dev-secret-change-me-in-production" {
+			return fmt.Errorf("JWT_SECRET must be set to a secure value in production")
 		}
 	}
 	return nil

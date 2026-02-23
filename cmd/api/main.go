@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	"fmt"
 	"log/slog"
 	"net/http"
@@ -15,11 +14,14 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
-	_ "github.com/lib/pq"
 
+	"github.com/onnwee/pulse-score/internal/auth"
 	"github.com/onnwee/pulse-score/internal/config"
+	"github.com/onnwee/pulse-score/internal/database"
 	"github.com/onnwee/pulse-score/internal/handler"
 	"github.com/onnwee/pulse-score/internal/middleware"
+	"github.com/onnwee/pulse-score/internal/repository"
+	"github.com/onnwee/pulse-score/internal/service"
 )
 
 func main() {
@@ -36,28 +38,30 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Database connection (optional — server starts without DB for healthz)
-	var db *sql.DB
+	// Database connection (pgxpool)
+	var pool *database.Pool
 	if cfg.Database.URL != "" {
-		var err error
-		db, err = sql.Open("postgres", cfg.Database.URL)
-		if err != nil {
-			slog.Error("failed to open database", "error", err)
-			os.Exit(1)
-		}
-		defer db.Close()
-
-		db.SetMaxOpenConns(cfg.Database.MaxOpenConns)
-		db.SetMaxIdleConns(cfg.Database.MaxIdleConns)
-
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		if err := db.PingContext(ctx); err != nil {
+
+		var err error
+		dbPool, err := database.NewPool(ctx, database.PoolConfig{
+			URL:               cfg.Database.URL,
+			MaxConns:          int32(cfg.Database.MaxOpenConns),
+			MinConns:          int32(cfg.Database.MaxIdleConns),
+			MaxConnLifetime:   time.Duration(cfg.Database.MaxConnLifetime) * time.Second,
+			HealthCheckPeriod: time.Duration(cfg.Database.HealthCheckSec) * time.Second,
+		})
+		if err != nil {
 			slog.Warn("database not reachable at startup", "error", err)
 		} else {
-			slog.Info("database connected")
+			pool = &database.Pool{P: dbPool}
+			defer dbPool.Close()
 		}
 	}
+
+	// JWT manager
+	jwtMgr := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
 
 	// Router
 	r := chi.NewRouter()
@@ -71,7 +75,7 @@ func main() {
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.CORS.AllowedOrigins,
 		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
-		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Organization-ID"},
 		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
 		MaxAge:           300,
@@ -79,7 +83,7 @@ func main() {
 	r.Use(httprate.LimitByIP(cfg.Rate.RequestsPerMinute, time.Minute))
 
 	// Health checks (no auth required)
-	health := handler.NewHealthHandler(db)
+	health := handler.NewHealthHandler(pool)
 	r.Get("/healthz", health.Liveness)
 	r.Get("/readyz", health.Readiness)
 
@@ -89,6 +93,62 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			w.Write([]byte(`{"message":"pong"}`))
 		})
+
+		// Auth routes (public)
+		if pool != nil {
+			userRepo := repository.NewUserRepository(pool.P)
+			orgRepo := repository.NewOrganizationRepository(pool.P)
+			refreshTokenRepo := repository.NewRefreshTokenRepository(pool.P)
+			invitationRepo := repository.NewInvitationRepository(pool.P)
+			passwordResetRepo := repository.NewPasswordResetRepository(pool.P)
+
+			emailSvc := service.NewSendGridEmailService(service.SendGridConfig{
+				APIKey:      cfg.SendGrid.APIKey,
+				FromEmail:   cfg.SendGrid.FromEmail,
+				FrontendURL: cfg.SendGrid.FrontendURL,
+				DevMode:     !cfg.IsProd(),
+			})
+
+			authSvc := service.NewAuthService(pool.P, userRepo, orgRepo, refreshTokenRepo, passwordResetRepo, jwtMgr, cfg.JWT.RefreshTTL, emailSvc)
+			authHandler := handler.NewAuthHandler(authSvc)
+
+			invitationSvc := service.NewInvitationService(pool.P, invitationRepo, orgRepo, userRepo, emailSvc, jwtMgr)
+			invitationHandler := handler.NewInvitationHandler(invitationSvc)
+
+			r.Post("/auth/register", authHandler.Register)
+			r.Post("/auth/login", authHandler.Login)
+			r.Post("/auth/refresh", authHandler.Refresh)
+			r.Post("/auth/password-reset/request", authHandler.RequestPasswordReset)
+			r.Post("/auth/password-reset/complete", authHandler.CompletePasswordReset)
+
+			// Invitation acceptance (public — no auth required)
+			r.Post("/invitations/accept", invitationHandler.Accept)
+
+			// Protected routes (JWT required)
+			r.Group(func(r chi.Router) {
+				r.Use(middleware.JWTAuth(jwtMgr))
+				r.Use(middleware.TenantIsolation(orgRepo))
+
+				// Organization routes
+				orgSvc := service.NewOrganizationService(pool.P, orgRepo)
+				orgHandler := handler.NewOrganizationHandler(orgSvc)
+				r.Post("/organizations", orgHandler.Create)
+
+				// User profile routes
+				userSvc := service.NewUserService(userRepo, orgRepo)
+				userHandler := handler.NewUserHandler(userSvc)
+				r.Get("/users/me", userHandler.GetProfile)
+				r.Patch("/users/me", userHandler.UpdateProfile)
+
+				// Invitation routes (admin+ required)
+				r.Route("/invitations", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Post("/", invitationHandler.Create)
+					r.Get("/", invitationHandler.List)
+					r.Delete("/{id}", invitationHandler.Revoke)
+				})
+			})
+		}
 	})
 
 	// Server

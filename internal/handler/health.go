@@ -1,19 +1,20 @@
 package handler
 
 import (
-	"database/sql"
 	"encoding/json"
 	"net/http"
+
+	"github.com/onnwee/pulse-score/internal/database"
 )
 
 // HealthHandler provides health check endpoints.
 type HealthHandler struct {
-	db *sql.DB
+	pool *database.Pool
 }
 
 // NewHealthHandler creates a new HealthHandler.
-func NewHealthHandler(db *sql.DB) *HealthHandler {
-	return &HealthHandler{db: db}
+func NewHealthHandler(pool *database.Pool) *HealthHandler {
+	return &HealthHandler{pool: pool}
 }
 
 // Liveness always returns 200 — the server is alive.
@@ -27,7 +28,7 @@ func (h *HealthHandler) Liveness(w http.ResponseWriter, r *http.Request) {
 func (h *HealthHandler) Readiness(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
-	if h.db == nil {
+	if h.pool == nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "degraded",
@@ -36,7 +37,7 @@ func (h *HealthHandler) Readiness(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.db.PingContext(r.Context()); err != nil {
+	if err := h.pool.P.Ping(r.Context()); err != nil {
 		w.WriteHeader(http.StatusServiceUnavailable)
 		json.NewEncoder(w).Encode(map[string]string{
 			"status": "degraded",

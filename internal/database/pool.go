@@ -9,6 +9,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+// Pool is a thin wrapper around pgxpool.Pool for convenience.
+type Pool struct {
+	P *pgxpool.Pool
+}
+
 // PoolConfig holds connection-pool tuning parameters.
 type PoolConfig struct {
 	URL                string
