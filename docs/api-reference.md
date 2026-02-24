@@ -1,19 +1,22 @@
 # PulseScore API Reference
 
-This reference documents the public REST API surface under `/api/v1`.
+This reference documents the public REST API surface. Application endpoints are versioned under `/api/v1`, while operational endpoints such as `/healthz` and `/readyz` are served from the server root (`/`).
 
-- Base URL (local): `http://localhost:8080/api/v1`
+- Base URL (local, application endpoints): `http://localhost:8080/api/v1`
+- Base URL (local, health/ready checks): `http://localhost:8080`
 - Content type: `application/json`
 - Auth scheme: `Authorization: Bearer <access_token>` for protected endpoints
-- Source of truth: `docs/openapi.yaml` + implemented routes in `cmd/api/main.go`
+- Source of truth: `docs/openapi.yaml` for documented endpoints; for billing, alerts, and webhook routes (e.g. `/billing/*`, `/webhooks/stripe-billing`, `/alerts/history`, `/alerts/stats`), `cmd/api/main.go` is the authoritative route list until the OpenAPI spec is updated.
 
 ## Authentication
 
 ### JWT flow
 
-1. `POST /auth/register` or `POST /auth/login` returns:
-   - `access_token` (short-lived)
-   - `refresh_token` (long-lived)
+1. `POST /auth/register` or `POST /auth/login` returns a payload with:
+   - `user`
+   - `organization`
+   - `tokens.access_token` (short-lived)
+   - `tokens.refresh_token` (long-lived)
 2. Include the access token in protected requests:
 
 ```http
@@ -36,13 +39,22 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 
 ```json
 {
-  "access_token": "eyJ...new",
-  "refresh_token": "rt_456...new",
-  "expires_in": 900,
   "user": {
     "id": "3d9d3d07-8ca4-4d84-bf1f-3fd95b874be6",
     "email": "owner@acme.com",
-    "role": "admin"
+    "first_name": "Jane",
+    "last_name": "Doe"
+  },
+  "organization": {
+    "id": "1f0d2f47-5f0b-4e61-a929-b81f16431ba4",
+    "name": "Acme Inc",
+    "slug": "acme-inc",
+    "role": "owner",
+    "plan": "free"
+  },
+  "tokens": {
+    "access_token": "eyJ...new",
+    "refresh_token": "rt_456...new"
   }
 }
 ```
@@ -113,6 +125,16 @@ Common HTTP statuses:
 { "status": "ok" }
 ```
 
+### GET `/ping`
+- **Auth required:** No
+- **Description:** Lightweight API heartbeat endpoint under `/api/v1`.
+
+**Response (200)**
+
+```json
+{ "message": "pong" }
+```
+
 ### GET `/readyz`
 - **Auth required:** No
 - **Description:** Readiness probe (includes DB health).
@@ -135,7 +157,9 @@ Common HTTP statuses:
 
 ```json
 {
-  "name": "Acme Inc",
+  "org_name": "Acme Inc",
+  "first_name": "Jane",
+  "last_name": "Doe",
   "email": "owner@acme.com",
   "password": "StrongPassword123!"
 }
@@ -145,16 +169,22 @@ Common HTTP statuses:
 
 ```json
 {
-  "access_token": "eyJ...",
-  "refresh_token": "rt_123...",
   "user": {
     "id": "3d9d3d07-8ca4-4d84-bf1f-3fd95b874be6",
     "email": "owner@acme.com",
-    "role": "admin"
+    "first_name": "Jane",
+    "last_name": "Doe"
   },
   "organization": {
     "id": "1f0d2f47-5f0b-4e61-a929-b81f16431ba4",
-    "name": "Acme Inc"
+    "name": "Acme Inc",
+    "slug": "acme-inc",
+    "role": "owner",
+    "plan": "free"
+  },
+  "tokens": {
+    "access_token": "eyJ...",
+    "refresh_token": "rt_123..."
   }
 }
 ```
@@ -176,12 +206,22 @@ Common HTTP statuses:
 
 ```json
 {
-  "access_token": "eyJ...",
-  "refresh_token": "rt_123...",
   "user": {
     "id": "3d9d3d07-8ca4-4d84-bf1f-3fd95b874be6",
     "email": "owner@acme.com",
-    "role": "admin"
+    "first_name": "Jane",
+    "last_name": "Doe"
+  },
+  "organization": {
+    "id": "1f0d2f47-5f0b-4e61-a929-b81f16431ba4",
+    "name": "Acme Inc",
+    "slug": "acme-inc",
+    "role": "owner",
+    "plan": "free"
+  },
+  "tokens": {
+    "access_token": "eyJ...",
+    "refresh_token": "rt_123..."
   }
 }
 ```
@@ -200,8 +240,23 @@ Common HTTP statuses:
 
 ```json
 {
-  "access_token": "eyJ...new",
-  "refresh_token": "rt_456...new"
+  "user": {
+    "id": "3d9d3d07-8ca4-4d84-bf1f-3fd95b874be6",
+    "email": "owner@acme.com",
+    "first_name": "Jane",
+    "last_name": "Doe"
+  },
+  "organization": {
+    "id": "1f0d2f47-5f0b-4e61-a929-b81f16431ba4",
+    "name": "Acme Inc",
+    "slug": "acme-inc",
+    "role": "owner",
+    "plan": "free"
+  },
+  "tokens": {
+    "access_token": "eyJ...new",
+    "refresh_token": "rt_456...new"
+  }
 }
 ```
 
@@ -257,16 +312,20 @@ Common HTTP statuses:
     {
       "id": "3f4f5b8d-1ad4-4748-bf40-55b8c8b8e29d",
       "name": "Acme Corp",
+      "email": "billing@acme.com",
+      "company_name": "Acme Corp",
+      "mrr_cents": 1250000,
       "source": "stripe",
-      "mrr": 12500,
-      "health_score": 78,
+      "last_seen_at": "2026-02-20T10:15:00Z",
+      "overall_score": 78,
       "risk_level": "medium"
     }
   ],
   "pagination": {
     "page": 1,
     "per_page": 20,
-    "total": 1
+    "total": 1,
+    "total_pages": 1
   }
 }
 ```
@@ -279,12 +338,53 @@ Common HTTP statuses:
 
 ```json
 {
-  "id": "3f4f5b8d-1ad4-4748-bf40-55b8c8b8e29d",
-  "name": "Acme Corp",
-  "mrr": 12500,
-  "health_score": 78,
-  "risk_level": "medium",
-  "last_activity_at": "2026-02-20T10:15:00Z"
+  "customer": {
+    "id": "3f4f5b8d-1ad4-4748-bf40-55b8c8b8e29d",
+    "name": "Acme Corp",
+    "email": "billing@acme.com",
+    "company_name": "Acme Corp",
+    "mrr_cents": 1250000,
+    "currency": "usd",
+    "source": "stripe",
+    "external_id": "cus_123",
+    "first_seen_at": "2025-12-01T09:00:00Z",
+    "last_seen_at": "2026-02-20T10:15:00Z",
+    "metadata": {
+      "segment": "enterprise"
+    },
+    "created_at": "2025-12-01T09:00:00Z"
+  },
+  "health_score": {
+    "overall_score": 78,
+    "risk_level": "yellow",
+    "factors": {
+      "payment_recency": 0.9
+    },
+    "calculated_at": "2026-02-20T10:20:00Z"
+  },
+  "subscriptions": [
+    {
+      "id": "f2b51ac6-7f9b-4f12-bbe1-482f923e7f9e",
+      "stripe_subscription_id": "sub_123",
+      "status": "active",
+      "plan_name": "Pro",
+      "amount_cents": 1250000,
+      "currency": "usd",
+      "interval": "month",
+      "current_period_end": "2026-03-01T09:00:00Z"
+    }
+  ],
+  "recent_events": [
+    {
+      "id": "4b4355f5-63f3-4a88-bf31-c4f1c99b4f6b",
+      "event_type": "payment_failed",
+      "source": "billing",
+      "occurred_at": "2026-02-21T08:00:00Z",
+      "data": {
+        "invoice_id": "in_123"
+      }
+    }
+  ]
 }
 ```
 
@@ -300,15 +400,17 @@ Common HTTP statuses:
   "events": [
     {
       "id": "4b4355f5-63f3-4a88-bf31-c4f1c99b4f6b",
-      "type": "payment_failed",
+      "event_type": "payment_failed",
+      "source": "billing",
       "occurred_at": "2026-02-21T08:00:00Z",
-      "metadata": { "invoice_id": "in_123" }
+      "data": { "invoice_id": "in_123" }
     }
   ],
   "pagination": {
     "page": 1,
     "per_page": 20,
-    "total": 1
+    "total": 1,
+    "total_pages": 1
   }
 }
 ```
@@ -326,23 +428,42 @@ Common HTTP statuses:
 ```json
 {
   "total_customers": 42,
-  "average_health_score": 74,
-  "at_risk_customers": 6,
-  "healthy_customers": 24
+  "risk_distribution": {
+    "green": 24,
+    "yellow": 12,
+    "red": 6
+  },
+  "total_mrr_cents": 1234500,
+  "mrr_change_30d_cents": 0,
+  "at_risk_count": 6,
+  "at_risk_change_7d": 1,
+  "avg_health_score": 74.3,
+  "score_change_7d": -1.2
 }
 ```
 
 ### GET `/dashboard/score-distribution`
 - **Auth required:** Yes (JWT)
-- **Description:** High/medium/low distribution.
+- **Description:** Score distribution, risk breakdown, and summary statistics.
 
 **Response (200)**
 
 ```json
 {
-  "high": 24,
-  "medium": 12,
-  "low": 6
+  "buckets": [
+    { "range": "0-20", "count": 2 },
+    { "range": "21-40", "count": 5 },
+    { "range": "41-60", "count": 10 },
+    { "range": "61-80", "count": 15 },
+    { "range": "81-100", "count": 10 }
+  ],
+  "risk_breakdown": {
+    "green": { "count": 24, "pct": 57.14 },
+    "yellow": { "count": 12, "pct": 28.57 },
+    "red": { "count": 6, "pct": 14.29 }
+  },
+  "average_score": 74.2,
+  "median_score": 76
 }
 ```
 
@@ -354,9 +475,10 @@ Common HTTP statuses:
 
 ```json
 {
-  "low": 24,
-  "medium": 12,
-  "high": 6
+  "green": 24,
+  "yellow": 12,
+  "red": 6,
+  "total": 42
 }
 ```
 
@@ -367,15 +489,18 @@ Common HTTP statuses:
 **Response (200)**
 
 ```json
-{
-  "bins": [
-    { "range": "0-20", "count": 1 },
-    { "range": "21-40", "count": 3 },
-    { "range": "41-60", "count": 9 },
-    { "range": "61-80", "count": 17 },
-    { "range": "81-100", "count": 12 }
-  ]
-}
+[
+  { "min": 0, "max": 9, "count": 1 },
+  { "min": 10, "max": 19, "count": 2 },
+  { "min": 20, "max": 29, "count": 3 },
+  { "min": 30, "max": 39, "count": 4 },
+  { "min": 40, "max": 49, "count": 5 },
+  { "min": 50, "max": 59, "count": 6 },
+  { "min": 60, "max": 69, "count": 7 },
+  { "min": 70, "max": 79, "count": 8 },
+  { "min": 80, "max": 89, "count": 9 },
+  { "min": 90, "max": 100, "count": 10 }
+]
 ```
 
 ### POST `/scoring/customers/{id}/recalculate`
@@ -388,10 +513,10 @@ Common HTTP statuses:
 {}
 ```
 
-**Response (200)**
+**Response (202)**
 
 ```json
-{ "status": "recalculation_scheduled" }
+{ "message": "recalculation triggered" }
 ```
 
 ### GET `/scoring/config`
@@ -402,6 +527,8 @@ Common HTTP statuses:
 
 ```json
 {
+  "id": "253ba43b-3894-45c1-8b41-a7a8a9ec4ddd",
+  "org_id": "1f0d2f47-5f0b-4e61-a929-b81f16431ba4",
   "weights": {
     "payment_recency": 0.25,
     "mrr_trend": 0.25,
@@ -409,7 +536,12 @@ Common HTTP statuses:
     "support_tickets": 0.15,
     "engagement": 0.15
   },
-  "change_delta": 10
+  "thresholds": {
+    "green": 70,
+    "yellow": 40
+  },
+  "created_at": "2026-02-01T10:00:00Z",
+  "updated_at": "2026-02-24T09:45:00Z"
 }
 ```
 
@@ -428,7 +560,10 @@ Common HTTP statuses:
     "support_tickets": 0.15,
     "engagement": 0.15
   },
-  "change_delta": 8
+  "thresholds": {
+    "green": 75,
+    "yellow": 45
+  }
 }
 ```
 
@@ -436,7 +571,21 @@ Common HTTP statuses:
 
 ```json
 {
-  "status": "updated"
+  "id": "253ba43b-3894-45c1-8b41-a7a8a9ec4ddd",
+  "org_id": "1f0d2f47-5f0b-4e61-a929-b81f16431ba4",
+  "weights": {
+    "payment_recency": 0.3,
+    "mrr_trend": 0.2,
+    "failed_payments": 0.2,
+    "support_tickets": 0.15,
+    "engagement": 0.15
+  },
+  "thresholds": {
+    "green": 75,
+    "yellow": 45
+  },
+  "created_at": "2026-02-01T10:00:00Z",
+  "updated_at": "2026-02-24T10:10:00Z"
 }
 ```
 
@@ -485,7 +634,7 @@ Common HTTP statuses:
 {}
 ```
 
-**Response (200)**
+**Response (202)**
 
 ```json
 { "status": "sync_started" }
@@ -495,10 +644,10 @@ Common HTTP statuses:
 - **Auth required:** Yes (JWT + admin)
 - **Description:** Disconnect provider.
 
-**Response (200)**
+**Response (204 No Content)**
 
-```json
-{ "status": "disconnected" }
+```http
+HTTP/1.1 204 No Content
 ```
 
 ### Stripe-specific routes
@@ -553,8 +702,11 @@ Common HTTP statuses:
     {
       "id": "a1885638-870c-4070-ac53-f8de157e7a93",
       "name": "MRR drop > 20%",
-      "enabled": true,
-      "severity": "high"
+      "trigger_type": "score_drop",
+      "conditions": { "threshold": 20 },
+      "channel": "email",
+      "recipients": ["owner@acme.com"],
+      "is_active": true
     }
   ]
 }
@@ -570,21 +722,26 @@ Common HTTP statuses:
 {
   "name": "MRR drop > 20%",
   "description": "Detects sudden revenue drop",
-  "enabled": true,
-  "severity": "high",
-  "conditions": [
-    { "field": "mrr_change_pct", "operator": "lte", "value": -20 }
-  ]
+  "trigger_type": "score_drop",
+  "conditions": { "threshold": 20 },
+  "channel": "email",
+  "recipients": ["owner@acme.com"],
+  "is_active": true
 }
 ```
 
-**Response (201/200)**
+**Response (201)**
 
 ```json
 {
   "id": "a1885638-870c-4070-ac53-f8de157e7a93",
   "name": "MRR drop > 20%",
-  "enabled": true
+  "description": "Detects sudden revenue drop",
+  "trigger_type": "score_drop",
+  "conditions": { "threshold": 20 },
+  "channel": "email",
+  "recipients": ["owner@acme.com"],
+  "is_active": true
 }
 ```
 
@@ -598,8 +755,11 @@ Common HTTP statuses:
 {
   "id": "a1885638-870c-4070-ac53-f8de157e7a93",
   "name": "MRR drop > 20%",
-  "enabled": true,
-  "severity": "high"
+  "trigger_type": "score_drop",
+  "conditions": { "threshold": 20 },
+  "channel": "email",
+  "recipients": ["owner@acme.com"],
+  "is_active": true
 }
 ```
 
@@ -611,7 +771,7 @@ Common HTTP statuses:
 
 ```json
 {
-  "enabled": false
+  "is_active": false
 }
 ```
 
@@ -620,7 +780,7 @@ Common HTTP statuses:
 ```json
 {
   "id": "a1885638-870c-4070-ac53-f8de157e7a93",
-  "enabled": false
+  "is_active": false
 }
 ```
 
@@ -628,11 +788,7 @@ Common HTTP statuses:
 - **Auth required:** Yes (JWT + admin)
 - **Description:** Delete alert rule.
 
-**Response (200)**
-
-```json
-{ "status": "deleted" }
-```
+**Response (204 No Content)**
 
 ### GET `/alerts/rules/{id}/history`
 - **Auth required:** Yes (JWT + admin)
