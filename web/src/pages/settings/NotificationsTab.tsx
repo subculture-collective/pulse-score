@@ -33,7 +33,12 @@ export default function NotificationsTab() {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function toggleField(field: keyof Pick<NotificationPreference, "email_enabled" | "in_app_enabled" | "digest_enabled">) {
+  async function toggleField(
+    field: keyof Pick<
+      NotificationPreference,
+      "email_enabled" | "in_app_enabled" | "digest_enabled"
+    >,
+  ) {
     if (!prefs) return;
     setSaving(true);
     try {
@@ -76,9 +81,7 @@ export default function NotificationsTab() {
         muted_rule_ids: newMuted,
       });
       setPrefs(data);
-      toast.success(
-        muted.includes(ruleId) ? "Rule unmuted" : "Rule muted"
-      );
+      toast.success(muted.includes(ruleId) ? "Rule unmuted" : "Rule muted");
     } catch {
       toast.error("Failed to update preferences");
     } finally {

@@ -4,7 +4,9 @@ import api, { onboardingApi, type OnboardingStepId } from "@/lib/api";
 import { stripeApi, type StripeStatus } from "@/lib/stripe";
 import { hubspotApi, type HubSpotStatus } from "@/lib/hubspot";
 import { intercomApi, type IntercomStatus } from "@/lib/intercom";
-import WizardShell, { type WizardShellStep } from "@/components/wizard/WizardShell";
+import WizardShell, {
+  type WizardShellStep,
+} from "@/components/wizard/WizardShell";
 import WelcomeStep, {
   type WelcomeFormValue,
 } from "@/components/wizard/steps/WelcomeStep";
@@ -15,7 +17,10 @@ import ScorePreviewStep, {
   type AtRiskCustomerPreview,
   type ScoreBucket,
 } from "@/components/wizard/steps/ScorePreviewStep";
-import { OnboardingProvider, useOnboarding } from "@/contexts/onboarding/OnboardingContext";
+import {
+  OnboardingProvider,
+  useOnboarding,
+} from "@/contexts/onboarding/OnboardingContext";
 import {
   ONBOARDING_RESUME_STEP_STORAGE_KEY,
   stepIdToIndex,
@@ -77,8 +82,12 @@ function OnboardingContent() {
   });
 
   const [stripeStatus, setStripeStatus] = useState<StripeStatus | null>(null);
-  const [hubSpotStatus, setHubSpotStatus] = useState<HubSpotStatus | null>(null);
-  const [intercomStatus, setIntercomStatus] = useState<IntercomStatus | null>(null);
+  const [hubSpotStatus, setHubSpotStatus] = useState<HubSpotStatus | null>(
+    null,
+  );
+  const [intercomStatus, setIntercomStatus] = useState<IntercomStatus | null>(
+    null,
+  );
 
   const [stripeBusy, setStripeBusy] = useState(false);
   const [hubSpotBusy, setHubSpotBusy] = useState(false);
@@ -90,7 +99,9 @@ function OnboardingContent() {
 
   const [previewLoading, setPreviewLoading] = useState(false);
   const [distribution, setDistribution] = useState<ScoreBucket[]>([]);
-  const [atRiskCustomers, setAtRiskCustomers] = useState<AtRiskCustomerPreview[]>([]);
+  const [atRiskCustomers, setAtRiskCustomers] = useState<
+    AtRiskCustomerPreview[]
+  >([]);
 
   const startedAtRef = useRef<Record<string, number>>({});
   const startedEventRef = useRef<Set<string>>(new Set());
@@ -142,7 +153,8 @@ function OnboardingContent() {
         }),
       ]);
 
-      const buckets = scoreRes?.buckets ?? scoreRes?.distribution ?? scoreRes ?? [];
+      const buckets =
+        scoreRes?.buckets ?? scoreRes?.distribution ?? scoreRes ?? [];
       if (Array.isArray(buckets)) {
         setDistribution(
           buckets.map((bucket: Record<string, unknown>) => ({
@@ -192,7 +204,8 @@ function OnboardingContent() {
       hydrateFromStatus(data, preferredStepIndex);
 
       const welcomePayload =
-        data.step_payloads?.welcome && typeof data.step_payloads.welcome === "object"
+        data.step_payloads?.welcome &&
+        typeof data.step_payloads.welcome === "object"
           ? (data.step_payloads.welcome as Record<string, unknown>)
           : null;
 
@@ -200,7 +213,7 @@ function OnboardingContent() {
         name:
           typeof welcomePayload?.name === "string"
             ? welcomePayload.name
-            : organization?.name ?? "",
+            : (organization?.name ?? ""),
         industry:
           typeof welcomePayload?.industry === "string"
             ? welcomePayload.industry
@@ -295,13 +308,17 @@ function OnboardingContent() {
 
       const jobs: Promise<unknown>[] = [];
       if (isConnected(stripeStatus?.status)) jobs.push(stripeApi.triggerSync());
-      if (isConnected(hubSpotStatus?.status)) jobs.push(hubspotApi.triggerSync());
-      if (isConnected(intercomStatus?.status)) jobs.push(intercomApi.triggerSync());
+      if (isConnected(hubSpotStatus?.status))
+        jobs.push(hubspotApi.triggerSync());
+      if (isConnected(intercomStatus?.status))
+        jobs.push(intercomApi.triggerSync());
 
       if (jobs.length > 0) {
         try {
           await Promise.allSettled(jobs);
-          toast.info("Initial sync started. Preview will update as data arrives.");
+          toast.info(
+            "Initial sync started. Preview will update as data arrives.",
+          );
         } catch {
           // Promise.allSettled shouldn't throw, but keep the wizard resilient.
         }
@@ -340,7 +357,9 @@ function OnboardingContent() {
     payload?: Record<string, unknown>,
   ) {
     const startedAt = startedAtRef.current[stepId];
-    const duration = startedAt ? Math.max(0, Date.now() - startedAt) : undefined;
+    const duration = startedAt
+      ? Math.max(0, Date.now() - startedAt)
+      : undefined;
 
     await onboardingApi.updateStatus({
       action,
@@ -430,125 +449,125 @@ function OnboardingContent() {
   }
 
   const steps: WizardShellStep[] = [
-      {
-        id: "welcome",
-        label: "Welcome",
-        canProceed: welcomeValue.name.trim().length > 0,
-        content: (
-          <WelcomeStep
-            value={welcomeValue}
-            organizationName={organization?.name ?? "Your organization"}
-            onChange={setWelcomeValue}
-          />
-        ),
-        onNext: handleWelcomeComplete,
+    {
+      id: "welcome",
+      label: "Welcome",
+      canProceed: welcomeValue.name.trim().length > 0,
+      content: (
+        <WelcomeStep
+          value={welcomeValue}
+          organizationName={organization?.name ?? "Your organization"}
+          onChange={setWelcomeValue}
+        />
+      ),
+      onNext: handleWelcomeComplete,
+    },
+    {
+      id: "stripe",
+      label: "Stripe",
+      canProceed: isConnected(stripeStatus?.status),
+      canSkip: true,
+      content: (
+        <StripeConnectStep
+          connected={isConnected(stripeStatus?.status)}
+          loading={stripeBusy}
+          statusText={statusText(stripeStatus?.status)}
+          accountId={stripeStatus?.account_id}
+          error={stripeError}
+          onConnect={connectStripe}
+          onRefresh={fetchStripeStatus}
+        />
+      ),
+      onNext: async () => {
+        await recordStep("step_completed", "stripe", "hubspot", {
+          connected: true,
+          status: normalizeStatus(stripeStatus?.status),
+        });
       },
-      {
-        id: "stripe",
-        label: "Stripe",
-        canProceed: isConnected(stripeStatus?.status),
-        canSkip: true,
-        content: (
-          <StripeConnectStep
-            connected={isConnected(stripeStatus?.status)}
-            loading={stripeBusy}
-            statusText={statusText(stripeStatus?.status)}
-            accountId={stripeStatus?.account_id}
-            error={stripeError}
-            onConnect={connectStripe}
-            onRefresh={fetchStripeStatus}
-          />
-        ),
-        onNext: async () => {
-          await recordStep("step_completed", "stripe", "hubspot", {
-            connected: true,
-            status: normalizeStatus(stripeStatus?.status),
-          });
-        },
-        onSkip: async () => {
-          await recordStep("step_skipped", "stripe", "hubspot", {
-            connected: false,
-            reason: "skipped",
-          });
-        },
+      onSkip: async () => {
+        await recordStep("step_skipped", "stripe", "hubspot", {
+          connected: false,
+          reason: "skipped",
+        });
       },
-      {
-        id: "hubspot",
-        label: "HubSpot",
-        canProceed: isConnected(hubSpotStatus?.status),
-        canSkip: true,
-        content: (
-          <HubSpotConnectStep
-            connected={isConnected(hubSpotStatus?.status)}
-            loading={hubSpotBusy}
-            statusText={statusText(hubSpotStatus?.status)}
-            accountId={hubSpotStatus?.external_account_id}
-            error={hubSpotError}
-            onConnect={connectHubSpot}
-            onRefresh={fetchHubSpotStatus}
-          />
-        ),
-        onNext: async () => {
-          await recordStep("step_completed", "hubspot", "intercom", {
-            connected: true,
-            status: normalizeStatus(hubSpotStatus?.status),
-          });
-        },
-        onSkip: async () => {
-          await recordStep("step_skipped", "hubspot", "intercom", {
-            connected: false,
-            reason: "skipped",
-          });
-        },
+    },
+    {
+      id: "hubspot",
+      label: "HubSpot",
+      canProceed: isConnected(hubSpotStatus?.status),
+      canSkip: true,
+      content: (
+        <HubSpotConnectStep
+          connected={isConnected(hubSpotStatus?.status)}
+          loading={hubSpotBusy}
+          statusText={statusText(hubSpotStatus?.status)}
+          accountId={hubSpotStatus?.external_account_id}
+          error={hubSpotError}
+          onConnect={connectHubSpot}
+          onRefresh={fetchHubSpotStatus}
+        />
+      ),
+      onNext: async () => {
+        await recordStep("step_completed", "hubspot", "intercom", {
+          connected: true,
+          status: normalizeStatus(hubSpotStatus?.status),
+        });
       },
-      {
-        id: "intercom",
-        label: "Intercom",
-        canProceed: isConnected(intercomStatus?.status),
-        canSkip: true,
-        content: (
-          <IntercomConnectStep
-            connected={isConnected(intercomStatus?.status)}
-            loading={intercomBusy}
-            statusText={statusText(intercomStatus?.status)}
-            accountId={intercomStatus?.external_account_id}
-            error={intercomError}
-            onConnect={connectIntercom}
-            onRefresh={fetchIntercomStatus}
-          />
-        ),
-        onNext: async () => {
-          await recordStep("step_completed", "intercom", "preview", {
-            connected: true,
-            status: normalizeStatus(intercomStatus?.status),
-          });
-        },
-        onSkip: async () => {
-          await recordStep("step_skipped", "intercom", "preview", {
-            connected: false,
-            reason: "skipped",
-          });
-        },
+      onSkip: async () => {
+        await recordStep("step_skipped", "hubspot", "intercom", {
+          connected: false,
+          reason: "skipped",
+        });
       },
-      {
-        id: "preview",
-        label: "Preview",
-        content: (
-          <ScorePreviewStep
-            connectedProviders={connectedProviders}
-            syncStatus={syncStatus}
-            loading={previewLoading}
-            distribution={distribution}
-            atRiskCustomers={atRiskCustomers}
-          />
-        ),
-        onNext: async () => {
-          await recordStep("step_completed", "preview", "preview", {
-            connected_providers: connectedProviders,
-          });
-        },
+    },
+    {
+      id: "intercom",
+      label: "Intercom",
+      canProceed: isConnected(intercomStatus?.status),
+      canSkip: true,
+      content: (
+        <IntercomConnectStep
+          connected={isConnected(intercomStatus?.status)}
+          loading={intercomBusy}
+          statusText={statusText(intercomStatus?.status)}
+          accountId={intercomStatus?.external_account_id}
+          error={intercomError}
+          onConnect={connectIntercom}
+          onRefresh={fetchIntercomStatus}
+        />
+      ),
+      onNext: async () => {
+        await recordStep("step_completed", "intercom", "preview", {
+          connected: true,
+          status: normalizeStatus(intercomStatus?.status),
+        });
       },
-    ];
+      onSkip: async () => {
+        await recordStep("step_skipped", "intercom", "preview", {
+          connected: false,
+          reason: "skipped",
+        });
+      },
+    },
+    {
+      id: "preview",
+      label: "Preview",
+      content: (
+        <ScorePreviewStep
+          connectedProviders={connectedProviders}
+          syncStatus={syncStatus}
+          loading={previewLoading}
+          distribution={distribution}
+          atRiskCustomers={atRiskCustomers}
+        />
+      ),
+      onNext: async () => {
+        await recordStep("step_completed", "preview", "preview", {
+          connected_providers: connectedProviders,
+        });
+      },
+    },
+  ];
 
   async function handleDone() {
     try {
@@ -572,7 +591,9 @@ function OnboardingContent() {
   if (initialError || !status) {
     return (
       <div className="mx-auto max-w-xl rounded-lg border border-red-200 bg-red-50 p-6 text-center">
-        <h2 className="text-lg font-semibold text-red-800">Unable to load onboarding</h2>
+        <h2 className="text-lg font-semibold text-red-800">
+          Unable to load onboarding
+        </h2>
         <p className="mt-2 text-sm text-red-700">
           {initialError || "Something went wrong while loading onboarding."}
         </p>

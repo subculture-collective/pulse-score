@@ -17,12 +17,12 @@ import (
 
 // StripeSyncService handles syncing data from Stripe to local database.
 type StripeSyncService struct {
-	customers    *repository.CustomerRepository
-	subs         *repository.StripeSubscriptionRepository
-	payments     *repository.StripePaymentRepository
-	events       *repository.CustomerEventRepository
-	oauthSvc     *StripeOAuthService
-	paymentDays  int
+	customers   *repository.CustomerRepository
+	subs        *repository.StripeSubscriptionRepository
+	payments    *repository.StripePaymentRepository
+	events      *repository.CustomerEventRepository
+	oauthSvc    *StripeOAuthService
+	paymentDays int
 }
 
 // NewStripeSyncService creates a new StripeSyncService.
@@ -46,79 +46,49 @@ func NewStripeSyncService(
 
 // SyncProgress tracks the progress of a sync operation.
 type SyncProgress struct {
-	Step     string `json:"step"`
-	Total    int    `json:"total"`
-	Current  int    `json:"current"`
-	Errors   int    `json:"errors"`
+	Step    string `json:"step"`
+	Total   int    `json:"total"`
+	Current int    `json:"current"`
+	Errors  int    `json:"errors"`
+}
+
+type stripePaymentSyncOptions struct {
+	logLookupErrors        bool
+	logUpsertErrors        bool
+	emitFailedPaymentEvent bool
+	logCompletion          bool
 }
 
 // SyncCustomers fetches all customers from Stripe and upserts them locally.
 func (s *StripeSyncService) SyncCustomers(ctx context.Context, orgID uuid.UUID) (*SyncProgress, error) {
-	accessToken, err := s.oauthSvc.GetAccessToken(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("get access token: %w", err)
-	}
-
-	progress := &SyncProgress{Step: "customers"}
-
 	params := &stripe.CustomerListParams{}
 	params.Limit = stripe.Int64(100)
 
-	client := newStripeCustomerClient(accessToken)
-	iter := client.List(params)
-
-	for iter.Next() {
-		c := iter.Customer()
-		progress.Total++
-
-		now := time.Now()
-		created := time.Unix(c.Created, 0)
-		localCustomer := &repository.Customer{
-			OrgID:       orgID,
-			ExternalID:  c.ID,
-			Source:      "stripe",
-			Email:       c.Email,
-			Name:        c.Name,
-			Currency:    string(c.Currency),
-			FirstSeenAt: &created,
-			LastSeenAt:  &now,
-			Metadata:    stripeMetadataToMap(c.Metadata),
-		}
-
-		if err := s.customers.UpsertByExternal(ctx, localCustomer); err != nil {
-			slog.Error("failed to upsert customer", "stripe_id", c.ID, "error", err)
-			progress.Errors++
-			continue
-		}
-		progress.Current++
-	}
-
-	if err := iter.Err(); err != nil {
-		return progress, fmt.Errorf("iterate customers: %w", err)
-	}
-
-	slog.Info("customer sync complete",
-		"org_id", orgID,
-		"total", progress.Total,
-		"synced", progress.Current,
-		"errors", progress.Errors,
-	)
-
-	return progress, nil
+	return s.syncCustomers(ctx, orgID, "customers", params, true)
 }
 
 // SyncCustomersSince fetches customers modified since the given time (incremental sync).
 func (s *StripeSyncService) SyncCustomersSince(ctx context.Context, orgID uuid.UUID, since time.Time) (*SyncProgress, error) {
+	params := &stripe.CustomerListParams{}
+	params.Limit = stripe.Int64(100)
+	params.CreatedRange = &stripe.RangeQueryParams{GreaterThanOrEqual: since.Unix()}
+
+	return s.syncCustomers(ctx, orgID, "customers_incremental", params, false)
+}
+
+func (s *StripeSyncService) syncCustomers(
+	ctx context.Context,
+	orgID uuid.UUID,
+	step string,
+	params *stripe.CustomerListParams,
+	logCompletion bool,
+) (*SyncProgress, error) {
 	accessToken, err := s.oauthSvc.GetAccessToken(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("get access token: %w", err)
 	}
 
-	progress := &SyncProgress{Step: "customers_incremental"}
-
-	params := &stripe.CustomerListParams{}
-	params.Limit = stripe.Int64(100)
-	params.CreatedRange = &stripe.RangeQueryParams{GreaterThanOrEqual: since.Unix()}
+	progress := &SyncProgress{Step: step}
 
 	client := newStripeCustomerClient(accessToken)
 	iter := client.List(params)
@@ -127,25 +97,12 @@ func (s *StripeSyncService) SyncCustomersSince(ctx context.Context, orgID uuid.U
 		c := iter.Customer()
 		progress.Total++
 
-		now := time.Now()
-		created := time.Unix(c.Created, 0)
-		localCustomer := &repository.Customer{
-			OrgID:       orgID,
-			ExternalID:  c.ID,
-			Source:      "stripe",
-			Email:       c.Email,
-			Name:        c.Name,
-			Currency:    string(c.Currency),
-			FirstSeenAt: &created,
-			LastSeenAt:  &now,
-			Metadata:    stripeMetadataToMap(c.Metadata),
-		}
-
-		if err := s.customers.UpsertByExternal(ctx, localCustomer); err != nil {
+		if err := s.upsertCustomer(ctx, orgID, c); err != nil {
 			slog.Error("failed to upsert customer", "stripe_id", c.ID, "error", err)
 			progress.Errors++
 			continue
 		}
+
 		progress.Current++
 	}
 
@@ -153,7 +110,35 @@ func (s *StripeSyncService) SyncCustomersSince(ctx context.Context, orgID uuid.U
 		return progress, fmt.Errorf("iterate customers: %w", err)
 	}
 
+	if logCompletion {
+		slog.Info("customer sync complete",
+			"org_id", orgID,
+			"total", progress.Total,
+			"synced", progress.Current,
+			"errors", progress.Errors,
+		)
+	}
+
 	return progress, nil
+}
+
+func (s *StripeSyncService) upsertCustomer(ctx context.Context, orgID uuid.UUID, c *stripe.Customer) error {
+	now := time.Now()
+	created := time.Unix(c.Created, 0)
+
+	localCustomer := &repository.Customer{
+		OrgID:       orgID,
+		ExternalID:  c.ID,
+		Source:      "stripe",
+		Email:       c.Email,
+		Name:        c.Name,
+		Currency:    string(c.Currency),
+		FirstSeenAt: &created,
+		LastSeenAt:  &now,
+		Metadata:    stripeMetadataToMap(c.Metadata),
+	}
+
+	return s.customers.UpsertByExternal(ctx, localCustomer)
 }
 
 // SyncSubscriptions fetches all subscriptions from Stripe and upserts them locally.
@@ -253,123 +238,42 @@ func (s *StripeSyncService) SyncSubscriptions(ctx context.Context, orgID uuid.UU
 
 // SyncPayments fetches charges from Stripe and upserts them locally.
 func (s *StripeSyncService) SyncPayments(ctx context.Context, orgID uuid.UUID) (*SyncProgress, error) {
-	accessToken, err := s.oauthSvc.GetAccessToken(ctx, orgID)
-	if err != nil {
-		return nil, fmt.Errorf("get access token: %w", err)
-	}
-
-	progress := &SyncProgress{Step: "payments"}
 	since := time.Now().AddDate(0, 0, -s.paymentDays)
 
 	params := &stripe.ChargeListParams{}
 	params.Limit = stripe.Int64(100)
 	params.CreatedRange = &stripe.RangeQueryParams{GreaterThanOrEqual: since.Unix()}
 
-	client := newStripeChargeClient(accessToken)
-	iter := client.List(params)
-
-	for iter.Next() {
-		ch := iter.Charge()
-		progress.Total++
-
-		if ch.Customer == nil {
-			continue
-		}
-
-		localCustomer, err := s.customers.GetByExternalID(ctx, orgID, "stripe", ch.Customer.ID)
-		if err != nil {
-			slog.Error("failed to lookup customer for charge",
-				"stripe_charge_id", ch.ID,
-				"error", err,
-			)
-			progress.Errors++
-			continue
-		}
-		if localCustomer == nil {
-			progress.Errors++
-			continue
-		}
-
-		status := "succeeded"
-		if ch.Status == "failed" {
-			status = "failed"
-		} else if !ch.Paid {
-			status = "pending"
-		}
-
-		var paidAt *time.Time
-		if ch.Created > 0 {
-			t := time.Unix(ch.Created, 0)
-			paidAt = &t
-		}
-
-		localPayment := &repository.StripePayment{
-			OrgID:           orgID,
-			CustomerID:      localCustomer.ID,
-			StripePaymentID: ch.ID,
-			AmountCents:     int(ch.Amount),
-			Currency:        string(ch.Currency),
-			Status:          status,
-			FailureCode:     string(ch.FailureCode),
-			FailureMessage:  ch.FailureMessage,
-			PaidAt:          paidAt,
-		}
-
-		if err := s.payments.Upsert(ctx, localPayment); err != nil {
-			slog.Error("failed to upsert payment", "stripe_charge_id", ch.ID, "error", err)
-			progress.Errors++
-			continue
-		}
-		progress.Current++
-
-		// Create customer event for failed payments
-		if status == "failed" {
-			event := &repository.CustomerEvent{
-				OrgID:           orgID,
-				CustomerID:      localCustomer.ID,
-				EventType:       "payment.failed",
-				Source:          "stripe",
-				ExternalEventID: "charge_failed_" + ch.ID,
-				OccurredAt:      time.Unix(ch.Created, 0),
-				Data: map[string]any{
-					"amount_cents":    ch.Amount,
-					"currency":        string(ch.Currency),
-					"failure_code":    string(ch.FailureCode),
-					"failure_message": ch.FailureMessage,
-				},
-			}
-			if err := s.events.Upsert(ctx, event); err != nil {
-				slog.Error("failed to create payment failed event", "error", err)
-			}
-		}
-	}
-
-	if err := iter.Err(); err != nil {
-		return progress, fmt.Errorf("iterate charges: %w", err)
-	}
-
-	slog.Info("payment sync complete",
-		"org_id", orgID,
-		"total", progress.Total,
-		"synced", progress.Current,
-		"errors", progress.Errors,
-	)
-
-	return progress, nil
+	return s.syncPayments(ctx, orgID, "payments", params, stripePaymentSyncOptions{
+		logLookupErrors:        true,
+		logUpsertErrors:        true,
+		emitFailedPaymentEvent: true,
+		logCompletion:          true,
+	})
 }
 
 // SyncPaymentsSince fetches charges modified since the given time.
 func (s *StripeSyncService) SyncPaymentsSince(ctx context.Context, orgID uuid.UUID, since time.Time) (*SyncProgress, error) {
+	params := &stripe.ChargeListParams{}
+	params.Limit = stripe.Int64(100)
+	params.CreatedRange = &stripe.RangeQueryParams{GreaterThanOrEqual: since.Unix()}
+
+	return s.syncPayments(ctx, orgID, "payments_incremental", params, stripePaymentSyncOptions{})
+}
+
+func (s *StripeSyncService) syncPayments(
+	ctx context.Context,
+	orgID uuid.UUID,
+	step string,
+	params *stripe.ChargeListParams,
+	options stripePaymentSyncOptions,
+) (*SyncProgress, error) {
 	accessToken, err := s.oauthSvc.GetAccessToken(ctx, orgID)
 	if err != nil {
 		return nil, fmt.Errorf("get access token: %w", err)
 	}
 
-	progress := &SyncProgress{Step: "payments_incremental"}
-
-	params := &stripe.ChargeListParams{}
-	params.Limit = stripe.Int64(100)
-	params.CreatedRange = &stripe.RangeQueryParams{GreaterThanOrEqual: since.Unix()}
+	progress := &SyncProgress{Step: step}
 
 	client := newStripeChargeClient(accessToken)
 	iter := client.List(params)
@@ -378,53 +282,122 @@ func (s *StripeSyncService) SyncPaymentsSince(ctx context.Context, orgID uuid.UU
 		ch := iter.Charge()
 		progress.Total++
 
-		if ch.Customer == nil {
-			continue
-		}
-
-		localCustomer, err := s.customers.GetByExternalID(ctx, orgID, "stripe", ch.Customer.ID)
-		if err != nil || localCustomer == nil {
+		synced, err := s.processPaymentCharge(ctx, orgID, ch, options)
+		if err != nil {
 			progress.Errors++
 			continue
 		}
 
-		status := "succeeded"
-		if ch.Status == "failed" {
-			status = "failed"
-		} else if !ch.Paid {
-			status = "pending"
+		if synced {
+			progress.Current++
 		}
-
-		var paidAt *time.Time
-		if ch.Created > 0 {
-			t := time.Unix(ch.Created, 0)
-			paidAt = &t
-		}
-
-		localPayment := &repository.StripePayment{
-			OrgID:           orgID,
-			CustomerID:      localCustomer.ID,
-			StripePaymentID: ch.ID,
-			AmountCents:     int(ch.Amount),
-			Currency:        string(ch.Currency),
-			Status:          status,
-			FailureCode:     string(ch.FailureCode),
-			FailureMessage:  ch.FailureMessage,
-			PaidAt:          paidAt,
-		}
-
-		if err := s.payments.Upsert(ctx, localPayment); err != nil {
-			progress.Errors++
-			continue
-		}
-		progress.Current++
 	}
 
 	if err := iter.Err(); err != nil {
 		return progress, fmt.Errorf("iterate charges: %w", err)
 	}
 
+	if options.logCompletion {
+		slog.Info("payment sync complete",
+			"org_id", orgID,
+			"total", progress.Total,
+			"synced", progress.Current,
+			"errors", progress.Errors,
+		)
+	}
+
 	return progress, nil
+}
+
+func (s *StripeSyncService) processPaymentCharge(
+	ctx context.Context,
+	orgID uuid.UUID,
+	ch *stripe.Charge,
+	options stripePaymentSyncOptions,
+) (bool, error) {
+	if ch.Customer == nil {
+		return false, nil
+	}
+
+	localCustomer, err := s.customers.GetByExternalID(ctx, orgID, "stripe", ch.Customer.ID)
+	if err != nil {
+		if options.logLookupErrors {
+			slog.Error("failed to lookup customer for charge",
+				"stripe_charge_id", ch.ID,
+				"error", err,
+			)
+		}
+		return false, err
+	}
+	if localCustomer == nil {
+		return false, fmt.Errorf("customer not found for stripe charge: %s", ch.ID)
+	}
+
+	localPayment := buildStripePayment(orgID, localCustomer.ID, ch)
+	if err := s.payments.Upsert(ctx, localPayment); err != nil {
+		if options.logUpsertErrors {
+			slog.Error("failed to upsert payment", "stripe_charge_id", ch.ID, "error", err)
+		}
+		return false, err
+	}
+
+	if options.emitFailedPaymentEvent && localPayment.Status == "failed" {
+		s.emitFailedPaymentEvent(ctx, orgID, localCustomer.ID, ch)
+	}
+
+	return true, nil
+}
+
+func buildStripePayment(orgID, customerID uuid.UUID, ch *stripe.Charge) *repository.StripePayment {
+	var paidAt *time.Time
+	if ch.Created > 0 {
+		t := time.Unix(ch.Created, 0)
+		paidAt = &t
+	}
+
+	return &repository.StripePayment{
+		OrgID:           orgID,
+		CustomerID:      customerID,
+		StripePaymentID: ch.ID,
+		AmountCents:     int(ch.Amount),
+		Currency:        string(ch.Currency),
+		Status:          stripeChargeStatus(ch),
+		FailureCode:     string(ch.FailureCode),
+		FailureMessage:  ch.FailureMessage,
+		PaidAt:          paidAt,
+	}
+}
+
+func stripeChargeStatus(ch *stripe.Charge) string {
+	if ch.Status == "failed" {
+		return "failed"
+	}
+	if !ch.Paid {
+		return "pending"
+	}
+
+	return "succeeded"
+}
+
+func (s *StripeSyncService) emitFailedPaymentEvent(ctx context.Context, orgID, customerID uuid.UUID, ch *stripe.Charge) {
+	event := &repository.CustomerEvent{
+		OrgID:           orgID,
+		CustomerID:      customerID,
+		EventType:       "payment.failed",
+		Source:          "stripe",
+		ExternalEventID: "charge_failed_" + ch.ID,
+		OccurredAt:      time.Unix(ch.Created, 0),
+		Data: map[string]any{
+			"amount_cents":    ch.Amount,
+			"currency":        string(ch.Currency),
+			"failure_code":    string(ch.FailureCode),
+			"failure_message": ch.FailureMessage,
+		},
+	}
+
+	if err := s.events.Upsert(ctx, event); err != nil {
+		slog.Error("failed to create payment failed event", "error", err)
+	}
 }
 
 // extractSubscriptionDetails extracts plan name, amount, interval, and currency from a subscription.

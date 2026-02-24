@@ -85,9 +85,7 @@ export default function OrganizationTab() {
       )}
 
       <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
-        <h3 className="text-sm font-semibold text-indigo-800">
-          Onboarding
-        </h3>
+        <h3 className="text-sm font-semibold text-indigo-800">Onboarding</h3>
         <p className="mt-1 text-sm text-indigo-700">
           Need to revisit setup? You can restart the onboarding wizard anytime.
         </p>

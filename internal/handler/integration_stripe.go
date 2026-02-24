@@ -1,17 +1,18 @@
 package handler
 
 import (
+	"context"
 	"log/slog"
 	"net/http"
 
-	"github.com/onnwee/pulse-score/internal/auth"
+	"github.com/google/uuid"
 	"github.com/onnwee/pulse-score/internal/service"
 )
 
 // IntegrationStripeHandler provides Stripe integration HTTP endpoints.
 type IntegrationStripeHandler struct {
-	oauthSvc      *service.StripeOAuthService
-	orchestrator  *service.SyncOrchestratorService
+	oauthSvc     *service.StripeOAuthService
+	orchestrator *service.SyncOrchestratorService
 }
 
 // NewIntegrationStripeHandler creates a new IntegrationStripeHandler.
@@ -25,102 +26,43 @@ func NewIntegrationStripeHandler(oauthSvc *service.StripeOAuthService, orchestra
 // Connect handles GET /api/v1/integrations/stripe/connect.
 // Returns the OAuth URL to redirect the user to Stripe.
 func (h *IntegrationStripeHandler) Connect(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	connectURL, err := h.oauthSvc.ConnectURL(orgID)
-	if err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"url": connectURL})
+	integrationConnect(w, r, h.oauthSvc.ConnectURL)
 }
 
 // Callback handles GET /api/v1/integrations/stripe/callback.
 // Exchanges the code for tokens and initiates a full sync.
 func (h *IntegrationStripeHandler) Callback(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	code := r.URL.Query().Get("code")
-	state := r.URL.Query().Get("state")
-
-	// Check for Stripe error
-	if errMsg := r.URL.Query().Get("error"); errMsg != "" {
-		errDesc := r.URL.Query().Get("error_description")
-		slog.Warn("stripe oauth error", "error", errMsg, "description", errDesc)
-		writeJSON(w, http.StatusBadRequest, errorResponse("Stripe connection failed: "+errDesc))
-		return
-	}
-
-	if err := h.oauthSvc.ExchangeCode(r.Context(), orgID, code, state); err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	// Trigger initial full sync in background
-	go h.orchestrator.RunFullSync(r.Context(), orgID)
-
-	writeJSON(w, http.StatusOK, map[string]string{"message": "Stripe connected successfully. Initial sync started."})
+	integrationCallback(
+		w,
+		r,
+		"stripe",
+		"Stripe",
+		"Stripe connected successfully. Initial sync started.",
+		h.oauthSvc.ExchangeCode,
+		func(ctx context.Context, orgID uuid.UUID) { h.orchestrator.RunFullSync(ctx, orgID) },
+	)
 }
 
 // Status handles GET /api/v1/integrations/stripe/status.
 func (h *IntegrationStripeHandler) Status(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	status, err := h.oauthSvc.GetStatus(r.Context(), orgID)
-	if err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, status)
+	integrationStatus(w, r, func(ctx context.Context, orgID uuid.UUID) (any, error) {
+		return h.oauthSvc.GetStatus(ctx, orgID)
+	})
 }
 
 // Disconnect handles DELETE /api/v1/integrations/stripe.
 func (h *IntegrationStripeHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	if err := h.oauthSvc.Disconnect(r.Context(), orgID); err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"message": "Stripe disconnected"})
+	integrationDisconnect(w, r, h.oauthSvc.Disconnect, "Stripe disconnected")
 }
 
 // TriggerSync handles POST /api/v1/integrations/stripe/sync.
 func (h *IntegrationStripeHandler) TriggerSync(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	go h.orchestrator.RunFullSync(r.Context(), orgID)
-
-	writeJSON(w, http.StatusAccepted, map[string]string{"message": "sync started"})
-}
-
-// handleServiceError writes service errors to HTTP response.
-func handleServiceError(w http.ResponseWriter, err error) {
-	handler := &AuthHandler{}
-	handler.handleServiceError(w, err)
+	integrationTriggerSync(
+		w,
+		r,
+		func(ctx context.Context, orgID uuid.UUID) { h.orchestrator.RunFullSync(ctx, orgID) },
+		"sync started",
+	)
 }
 
 // WebhookStripeHandler provides Stripe webhook HTTP endpoints.
@@ -135,8 +77,7 @@ func NewWebhookStripeHandler(webhookSvc *service.StripeWebhookService) *WebhookS
 
 // HandleWebhook handles POST /api/v1/webhooks/stripe.
 func (h *WebhookStripeHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	const maxBodySize = 65536
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+	r.Body = http.MaxBytesReader(w, r.Body, webhookMaxBodyBytes)
 
 	payload, err := readBody(r)
 	if err != nil {
@@ -160,21 +101,6 @@ func (h *WebhookStripeHandler) HandleWebhook(w http.ResponseWriter, r *http.Requ
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
-func readBody(r *http.Request) ([]byte, error) {
-	var buf []byte
-	tmp := make([]byte, 1024)
-	for {
-		n, err := r.Body.Read(tmp)
-		if n > 0 {
-			buf = append(buf, tmp[:n]...)
-		}
-		if err != nil {
-			break
-		}
-	}
-	return buf, nil
-}
-
 // StripeStatusResponse is returned by GET /api/v1/integrations/stripe/status.
 type StripeStatusResponse struct {
 	Status        string `json:"status"`
@@ -183,4 +109,3 @@ type StripeStatusResponse struct {
 	LastSyncError string `json:"last_sync_error,omitempty"`
 	CustomerCount int    `json:"customer_count,omitempty"`
 }
-

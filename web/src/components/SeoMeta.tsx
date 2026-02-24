@@ -1,8 +1,6 @@
 import { useEffect } from "react";
 
-type StructuredData =
-  | Record<string, unknown>
-  | Record<string, unknown>[];
+type StructuredData = Record<string, unknown> | Record<string, unknown>[];
 
 interface SeoMetaProps {
   title: string;
@@ -15,7 +13,11 @@ interface SeoMetaProps {
   structuredData?: StructuredData;
 }
 
-function upsertMeta(attribute: "name" | "property", key: string, content: string) {
+function upsertMeta(
+  attribute: "name" | "property",
+  key: string,
+  content: string,
+) {
   let meta = document.head.querySelector(
     `meta[${attribute}="${key}"]`,
   ) as HTMLMetaElement | null;

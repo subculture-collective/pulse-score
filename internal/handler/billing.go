@@ -140,8 +140,7 @@ func NewWebhookStripeBillingHandler(webhookSvc billingWebhookServicer) *WebhookS
 
 // HandleWebhook handles POST /api/v1/webhooks/stripe-billing.
 func (h *WebhookStripeBillingHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	const maxBodySize = 65536
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+	r.Body = http.MaxBytesReader(w, r.Body, webhookMaxBodyBytes)
 
 	payload, err := readBody(r)
 	if err != nil {

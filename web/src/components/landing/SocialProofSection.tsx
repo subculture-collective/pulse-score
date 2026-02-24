@@ -44,7 +44,8 @@ export default function SocialProofSection() {
     <section className="bg-gray-50 px-6 py-16 dark:bg-gray-900 sm:px-10 lg:px-14 lg:py-24">
       <div className="mx-auto max-w-7xl">
         <p className="text-xs font-semibold tracking-[0.14em] text-gray-500 uppercase dark:text-gray-400">
-          Placeholder logos & testimonials for MVP (replace with production brand assets)
+          Placeholder logos & testimonials for MVP (replace with production
+          brand assets)
         </p>
 
         <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
@@ -64,8 +65,12 @@ export default function SocialProofSection() {
               key={metric.label}
               className="rounded-2xl border border-indigo-200 bg-white p-6 text-center dark:border-indigo-900 dark:bg-gray-950"
             >
-              <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-300">{metric.value}</p>
-              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">{metric.label}</p>
+              <p className="text-3xl font-extrabold text-indigo-600 dark:text-indigo-300">
+                {metric.value}
+              </p>
+              <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
+                {metric.label}
+              </p>
             </div>
           ))}
         </div>
@@ -81,8 +86,13 @@ export default function SocialProofSection() {
                 “{testimonial.quote}”
               </blockquote>
               <figcaption className="mt-4 text-xs text-gray-500 dark:text-gray-400">
-                <span className="font-semibold text-gray-700 dark:text-gray-200">{testimonial.name}</span>
-                <span> · {testimonial.role}, {testimonial.company}</span>
+                <span className="font-semibold text-gray-700 dark:text-gray-200">
+                  {testimonial.name}
+                </span>
+                <span>
+                  {" "}
+                  · {testimonial.role}, {testimonial.company}
+                </span>
               </figcaption>
             </figure>
           ))}

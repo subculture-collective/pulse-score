@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
-	"github.com/onnwee/pulse-score/internal/auth"
+	"github.com/google/uuid"
 	"github.com/onnwee/pulse-score/internal/service"
 )
 
@@ -25,94 +26,42 @@ func NewIntegrationIntercomHandler(oauthSvc *service.IntercomOAuthService, orche
 
 // Connect handles GET /api/v1/integrations/intercom/connect.
 func (h *IntegrationIntercomHandler) Connect(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	connectURL, err := h.oauthSvc.ConnectURL(orgID)
-	if err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"url": connectURL})
+	integrationConnect(w, r, h.oauthSvc.ConnectURL)
 }
 
 // Callback handles GET /api/v1/integrations/intercom/callback.
 func (h *IntegrationIntercomHandler) Callback(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	code := r.URL.Query().Get("code")
-	state := r.URL.Query().Get("state")
-
-	if errMsg := r.URL.Query().Get("error"); errMsg != "" {
-		errDesc := r.URL.Query().Get("error_description")
-		slog.Warn("intercom oauth error", "error", errMsg, "description", errDesc)
-		writeJSON(w, http.StatusBadRequest, errorResponse("Intercom connection failed: "+errDesc))
-		return
-	}
-
-	if err := h.oauthSvc.ExchangeCode(r.Context(), orgID, code, state); err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	// Trigger initial full sync in background
-	go h.orchestrator.RunFullSync(r.Context(), orgID)
-
-	writeJSON(w, http.StatusOK, map[string]string{"message": "Intercom connected successfully. Initial sync started."})
+	integrationCallback(
+		w,
+		r,
+		"intercom",
+		"Intercom",
+		"Intercom connected successfully. Initial sync started.",
+		h.oauthSvc.ExchangeCode,
+		func(ctx context.Context, orgID uuid.UUID) { h.orchestrator.RunFullSync(ctx, orgID) },
+	)
 }
 
 // Status handles GET /api/v1/integrations/intercom/status.
 func (h *IntegrationIntercomHandler) Status(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	status, err := h.oauthSvc.GetStatus(r.Context(), orgID)
-	if err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, status)
+	integrationStatus(w, r, func(ctx context.Context, orgID uuid.UUID) (any, error) {
+		return h.oauthSvc.GetStatus(ctx, orgID)
+	})
 }
 
 // Disconnect handles DELETE /api/v1/integrations/intercom.
 func (h *IntegrationIntercomHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	if err := h.oauthSvc.Disconnect(r.Context(), orgID); err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"message": "Intercom disconnected"})
+	integrationDisconnect(w, r, h.oauthSvc.Disconnect, "Intercom disconnected")
 }
 
 // TriggerSync handles POST /api/v1/integrations/intercom/sync.
 func (h *IntegrationIntercomHandler) TriggerSync(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	go h.orchestrator.RunFullSync(r.Context(), orgID)
-
-	writeJSON(w, http.StatusAccepted, map[string]string{"message": "Intercom sync started"})
+	integrationTriggerSync(
+		w,
+		r,
+		func(ctx context.Context, orgID uuid.UUID) { h.orchestrator.RunFullSync(ctx, orgID) },
+		"Intercom sync started",
+	)
 }
 
 // WebhookIntercomHandler provides Intercom webhook HTTP endpoints.
@@ -127,8 +76,7 @@ func NewWebhookIntercomHandler(webhookSvc *service.IntercomWebhookService) *Webh
 
 // HandleWebhook handles POST /api/v1/webhooks/intercom.
 func (h *WebhookIntercomHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	const maxBodySize = 65536
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+	r.Body = http.MaxBytesReader(w, r.Body, webhookMaxBodyBytes)
 
 	payload, err := readBody(r)
 	if err != nil {

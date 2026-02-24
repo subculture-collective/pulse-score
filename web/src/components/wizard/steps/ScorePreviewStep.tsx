@@ -33,8 +33,8 @@ export default function ScorePreviewStep({
     >
       {connectedProviders.length === 0 ? (
         <div className="rounded-lg border border-yellow-300 bg-yellow-50 p-4 text-sm text-yellow-800">
-          No integrations connected yet. You can finish onboarding now and connect
-          data sources later from Settings.
+          No integrations connected yet. You can finish onboarding now and
+          connect data sources later from Settings.
         </div>
       ) : (
         <>
@@ -42,9 +42,14 @@ export default function ScorePreviewStep({
             <h3 className="text-sm font-semibold text-gray-800">Sync status</h3>
             <ul className="mt-2 space-y-1 text-sm text-gray-700">
               {connectedProviders.map((provider) => (
-                <li key={provider} className="flex items-center justify-between">
+                <li
+                  key={provider}
+                  className="flex items-center justify-between"
+                >
                   <span className="capitalize">{provider}</span>
-                  <span className="font-medium">{syncStatus[provider] ?? "pending"}</span>
+                  <span className="font-medium">
+                    {syncStatus[provider] ?? "pending"}
+                  </span>
                 </li>
               ))}
             </ul>
@@ -64,7 +69,9 @@ export default function ScorePreviewStep({
               <div className="mt-3 space-y-2">
                 {distribution.map((bucket) => (
                   <div key={bucket.range} className="flex items-center gap-3">
-                    <span className="w-16 text-xs text-gray-500">{bucket.range}</span>
+                    <span className="w-16 text-xs text-gray-500">
+                      {bucket.range}
+                    </span>
                     <div className="h-2 flex-1 rounded bg-gray-100">
                       <div
                         className="h-2 rounded bg-indigo-500"
@@ -89,9 +96,14 @@ export default function ScorePreviewStep({
               </h4>
               <ul className="mt-2 space-y-1 text-sm text-red-700">
                 {atRiskCustomers.map((customer) => (
-                  <li key={customer.id} className="flex items-center justify-between">
+                  <li
+                    key={customer.id}
+                    className="flex items-center justify-between"
+                  >
                     <span>{customer.name}</span>
-                    <span className="font-semibold">{customer.health_score}</span>
+                    <span className="font-semibold">
+                      {customer.health_score}
+                    </span>
                   </li>
                 ))}
               </ul>

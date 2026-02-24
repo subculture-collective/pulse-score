@@ -25,7 +25,9 @@ function normalizeTier(value?: string | null): PlanTier | null {
   return null;
 }
 
-export default function PricingSection({ showStandaloneHeader = false }: PricingSectionProps) {
+export default function PricingSection({
+  showStandaloneHeader = false,
+}: PricingSectionProps) {
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const { isAuthenticated, organization } = useAuth();
   const { loading, startCheckout } = useCheckout();
@@ -61,12 +63,16 @@ export default function PricingSection({ showStandaloneHeader = false }: Pricing
   }, [isAuthenticated, organization?.plan]);
 
   const annualSavingsText = useMemo(() => {
-    const growthPlan = billingPlans.find((plan) => plan.tier === "growth") ?? billingPlans[0];
+    const growthPlan =
+      billingPlans.find((plan) => plan.tier === "growth") ?? billingPlans[0];
     return savingsBadge(growthPlan);
   }, []);
 
   return (
-    <section id="pricing" className="bg-white px-6 py-16 dark:bg-gray-950 sm:px-10 lg:px-14 lg:py-24">
+    <section
+      id="pricing"
+      className="bg-white px-6 py-16 dark:bg-gray-950 sm:px-10 lg:px-14 lg:py-24"
+    >
       <div className="mx-auto max-w-7xl">
         {showStandaloneHeader && (
           <div className="mb-8">
@@ -74,7 +80,8 @@ export default function PricingSection({ showStandaloneHeader = false }: Pricing
               Choose the right PulseScore plan
             </h1>
             <p className="mt-2 text-gray-600 dark:text-gray-300">
-              Start on Free and upgrade when your customer health workflow scales.
+              Start on Free and upgrade when your customer health workflow
+              scales.
             </p>
           </div>
         )}
@@ -123,7 +130,8 @@ export default function PricingSection({ showStandaloneHeader = false }: Pricing
         <div className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {billingPlans.map((plan) => {
             const isFree = plan.monthlyPrice === 0;
-            const displayPrice = cycle === "monthly" ? plan.monthlyPrice : plan.annualPrice;
+            const displayPrice =
+              cycle === "monthly" ? plan.monthlyPrice : plan.annualPrice;
             const period = cycle === "monthly" ? "/mo" : "/yr";
             const isCurrentPlan = currentTier === plan.tier;
 
@@ -144,8 +152,8 @@ export default function PricingSection({ showStandaloneHeader = false }: Pricing
                   isCurrentPlan
                     ? "border-emerald-400 bg-emerald-50/40 dark:border-emerald-700 dark:bg-emerald-950/10"
                     : plan.featured
-                    ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950/20"
-                    : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+                      ? "border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950/20"
+                      : "border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
                 }`}
               >
                 {isCurrentPlan && (
@@ -159,17 +167,25 @@ export default function PricingSection({ showStandaloneHeader = false }: Pricing
                   </span>
                 )}
 
-                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">{plan.name}</h3>
-                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">{plan.description}</p>
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                  {plan.name}
+                </h3>
+                <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+                  {plan.description}
+                </p>
 
                 <div className="mt-5 flex items-baseline gap-1">
                   <span className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-gray-100">
                     ${displayPrice}
                   </span>
-                  <span className="text-sm text-gray-500 dark:text-gray-400">{period}</span>
+                  <span className="text-sm text-gray-500 dark:text-gray-400">
+                    {period}
+                  </span>
                 </div>
                 {isFree && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">No credit card required</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    No credit card required
+                  </p>
                 )}
 
                 {isAuthenticated && !isFree && !isCurrentPlan ? (
@@ -186,7 +202,11 @@ export default function PricingSection({ showStandaloneHeader = false }: Pricing
                   </button>
                 ) : (
                   <Link
-                    to={isAuthenticated ? "/dashboard" : `/register?plan=${plan.tier}`}
+                    to={
+                      isAuthenticated
+                        ? "/dashboard"
+                        : `/register?plan=${plan.tier}`
+                    }
                     className={`mt-5 inline-flex w-full items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
                       plan.featured
                         ? "bg-indigo-600 text-white hover:bg-indigo-700"
