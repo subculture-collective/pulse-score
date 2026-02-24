@@ -318,7 +318,7 @@ Common HTTP statuses:
       "source": "stripe",
       "last_seen_at": "2026-02-20T10:15:00Z",
       "overall_score": 78,
-      "risk_level": "medium"
+      "risk_level": "yellow"
     }
   ],
   "pagination": {
