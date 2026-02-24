@@ -19,6 +19,13 @@ type Config struct {
 	HubSpot  HubSpotConfig
 	Intercom IntercomConfig
 	Scoring  ScoringConfig
+	Alert    AlertConfig
+}
+
+// AlertConfig holds alert engine settings.
+type AlertConfig struct {
+	EvalIntervalMin   int
+	DefaultCooldownHr int
 }
 
 // ScoringConfig holds health score engine settings.
@@ -61,9 +68,10 @@ type IntercomConfig struct {
 
 // SendGridConfig holds email sending settings.
 type SendGridConfig struct {
-	APIKey      string
-	FromEmail   string
-	FrontendURL string
+	APIKey           string
+	FromEmail        string
+	FrontendURL      string
+	WebhookVerifyKey string
 }
 
 // JWTConfig holds JWT signing settings.
@@ -137,9 +145,10 @@ func Load() *Config {
 			RefreshTTL: getDuration("JWT_REFRESH_TTL", 7*24*time.Hour),
 		},
 		SendGrid: SendGridConfig{
-			APIKey:      getEnv("SENDGRID_API_KEY", ""),
-			FromEmail:   getEnv("SENDGRID_FROM_EMAIL", "noreply@pulsescore.com"),
-			FrontendURL: getEnv("FRONTEND_URL", "http://localhost:5173"),
+			APIKey:           getEnv("SENDGRID_API_KEY", ""),
+			FromEmail:        getEnv("SENDGRID_FROM_EMAIL", "noreply@pulsescore.com"),
+			FrontendURL:      getEnv("FRONTEND_URL", "http://localhost:5173"),
+			WebhookVerifyKey: getEnv("SENDGRID_WEBHOOK_VERIFY_KEY", ""),
 		},
 		Stripe: StripeConfig{
 			ClientID:         getEnv("STRIPE_CLIENT_ID", ""),
@@ -170,6 +179,10 @@ func Load() *Config {
 			RecalcIntervalMin: getInt("SCORE_RECALC_INTERVAL_MIN", 60),
 			Workers:           getInt("SCORE_RECALC_WORKERS", 5),
 			ChangeDelta:       float64(getInt("SCORE_CHANGE_DELTA", 10)),
+		},
+		Alert: AlertConfig{
+			EvalIntervalMin:   getInt("ALERT_EVAL_INTERVAL_MIN", 15),
+			DefaultCooldownHr: getInt("ALERT_DEFAULT_COOLDOWN_HR", 24),
 		},
 	}
 }

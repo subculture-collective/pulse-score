@@ -21,8 +21,27 @@ type SendPasswordResetParams struct {
 	Token   string
 }
 
+// SendEmailParams holds parameters for sending a generic email.
+type SendEmailParams struct {
+	To       string
+	Subject  string
+	HTMLBody string
+	TextBody string
+}
+
+// AlertEmailParams holds parameters for sending an alert email.
+type AlertEmailParams struct {
+	To          string
+	Subject     string
+	HTMLBody    string
+	TextBody    string
+	AlertRuleID uuid.UUID
+	CustomerID  *uuid.UUID
+}
+
 // EmailService defines the interface for sending emails.
 type EmailService interface {
 	SendInvitation(ctx context.Context, params SendInvitationParams) error
 	SendPasswordReset(ctx context.Context, params SendPasswordResetParams) error
+	SendEmail(ctx context.Context, params SendEmailParams) (messageID string, err error)
 }

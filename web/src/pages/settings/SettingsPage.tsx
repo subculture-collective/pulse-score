@@ -11,6 +11,8 @@ import IntegrationsTab from "@/pages/settings/IntegrationsTab";
 import ScoringTab from "@/pages/settings/ScoringTab";
 import BillingTab from "@/pages/settings/BillingTab";
 import TeamTab from "@/pages/settings/TeamTab";
+import AlertsTab from "@/pages/settings/AlertsTab";
+import NotificationsTab from "@/pages/settings/NotificationsTab";
 import StripeCallbackPage from "@/pages/settings/StripeCallbackPage";
 import HubSpotCallbackPage from "@/pages/settings/HubSpotCallbackPage";
 
@@ -21,6 +23,8 @@ const tabs = [
   { path: "scoring", label: "Scoring" },
   { path: "billing", label: "Billing" },
   { path: "team", label: "Team" },
+  { path: "alerts", label: "Alerts" },
+  { path: "notifications", label: "Notifications" },
 ];
 
 export default function SettingsPage() {
@@ -69,6 +73,8 @@ export default function SettingsPage() {
         <Route path="scoring" element={<ScoringTab />} />
         <Route path="billing" element={<BillingTab />} />
         <Route path="team" element={<TeamTab />} />
+        <Route path="alerts" element={<AlertsTab />} />
+        <Route path="notifications" element={<NotificationsTab />} />
         <Route path="stripe/callback" element={<StripeCallbackPage />} />
         <Route path="hubspot/callback" element={<HubSpotCallbackPage />} />
         <Route index element={<Navigate to="organization" replace />} />

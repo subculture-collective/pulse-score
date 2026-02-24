@@ -45,6 +45,7 @@ type UpdateAlertRuleRequest struct {
 }
 
 var validTriggerTypes = map[string]bool{
+	"score_below":    true,
 	"score_drop":     true,
 	"risk_change":    true,
 	"payment_failed": true,

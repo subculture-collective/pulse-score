@@ -203,6 +203,33 @@ func (r *HealthScoreRepository) GetHistory(ctx context.Context, customerID uuid.
 	return scores, rows.Err()
 }
 
+// GetScoreAtTime retrieves the closest historical score for a customer at or before the given time.
+func (r *HealthScoreRepository) GetScoreAtTime(ctx context.Context, customerID, orgID uuid.UUID, at time.Time) (*HealthScore, error) {
+	query := `
+		SELECT id, org_id, customer_id, overall_score, risk_level, factors, calculated_at, created_at, created_at
+		FROM health_score_history
+		WHERE customer_id = $1 AND org_id = $2 AND calculated_at <= $3
+		ORDER BY calculated_at DESC
+		LIMIT 1`
+
+	hs := &HealthScore{}
+	var factorsJSON []byte
+	err := r.pool.QueryRow(ctx, query, customerID, orgID, at).Scan(
+		&hs.ID, &hs.OrgID, &hs.CustomerID, &hs.OverallScore, &hs.RiskLevel,
+		&factorsJSON, &hs.CalculatedAt, &hs.CreatedAt, &hs.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get score at time: %w", err)
+	}
+	if err := json.Unmarshal(factorsJSON, &hs.Factors); err != nil {
+		return nil, fmt.Errorf("unmarshal factors: %w", err)
+	}
+	return hs, nil
+}
+
 // CountByRiskLevel returns count of health scores grouped by risk level for an org.
 func (r *HealthScoreRepository) CountByRiskLevel(ctx context.Context, orgID uuid.UUID) (map[string]int, error) {
 	query := `

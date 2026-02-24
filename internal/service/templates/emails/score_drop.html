@@ -1,0 +1,39 @@
+{{define "content"}}
+<h2 style="margin:0 0 16px;font-size:20px;font-weight:600;color:#111827;">Health Score Drop Alert</h2>
+<p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+  A significant score drop was detected for <strong>{{.CustomerName}}</strong>{{if .CompanyName}} ({{.CompanyName}}){{end}}.
+</p>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:0 0 24px;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+  <tr>
+    <td style="padding:12px 16px;background-color:#f9fafb;border-bottom:1px solid #e5e7eb;">
+      <span style="font-size:13px;color:#6b7280;">Previous Score</span><br>
+      <span style="font-size:24px;font-weight:700;color:#111827;">{{.OldScore}}</span>
+    </td>
+    <td style="padding:12px 16px;text-align:center;background-color:#f9fafb;border-bottom:1px solid #e5e7eb;">
+      <span style="font-size:20px;color:#ef4444;">→</span>
+    </td>
+    <td style="padding:12px 16px;background-color:#f9fafb;border-bottom:1px solid #e5e7eb;">
+      <span style="font-size:13px;color:#6b7280;">Current Score</span><br>
+      <span style="font-size:24px;font-weight:700;color:#ef4444;">{{.NewScore}}</span>
+    </td>
+  </tr>
+  <tr>
+    <td colspan="3" style="padding:12px 16px;">
+      <span style="display:inline-block;padding:4px 12px;border-radius:12px;font-size:13px;font-weight:600;color:#ffffff;background-color:#ef4444;">▼ {{.Delta}} points</span>
+    </td>
+  </tr>
+</table>
+{{if .TopNegativeFactor}}
+<p style="margin:0 0 16px;font-size:14px;color:#374151;line-height:1.6;">
+  <strong>Biggest contributing factor:</strong> {{.TopNegativeFactor}}
+</p>
+{{end}}
+{{if .CustomerDetailURL}}
+<table role="presentation" cellpadding="0" cellspacing="0">
+  <tr><td style="border-radius:6px;background-color:#4f46e5;">
+    <a href="{{.CustomerDetailURL}}" style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;">View Customer Details</a>
+  </td></tr>
+</table>
+{{end}}
+{{end}}
+{{template "base" .}}

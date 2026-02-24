@@ -11,6 +11,9 @@ import (
 	"github.com/onnwee/pulse-score/internal/repository"
 )
 
+// AlertCallback is called after a score is calculated, for real-time alert evaluation.
+type AlertCallback func(ctx context.Context, customerID, orgID uuid.UUID)
+
 // ScoreScheduler handles periodic and event-triggered score recalculation.
 type ScoreScheduler struct {
 	aggregator      *ScoreAggregator
@@ -18,6 +21,7 @@ type ScoreScheduler struct {
 	customers       *repository.CustomerRepository
 	connections     *repository.IntegrationConnectionRepository
 	changeDetector  *ChangeDetector
+	alertCallback   AlertCallback
 	interval        time.Duration
 	workers         int
 }
@@ -44,6 +48,11 @@ func NewScoreScheduler(
 		interval:       interval,
 		workers:        workers,
 	}
+}
+
+// SetAlertCallback registers a callback for real-time alert evaluation after score changes.
+func (s *ScoreScheduler) SetAlertCallback(cb AlertCallback) {
+	s.alertCallback = cb
 }
 
 // Start begins the periodic score recalculation. Cancel the context to stop.
@@ -198,6 +207,11 @@ func (s *ScoreScheduler) calculateAndStore(ctx context.Context, customerID, orgI
 		if err := s.changeDetector.DetectAndRecord(ctx, previous, result); err != nil {
 			slog.Error("change detection error", "customer_id", customerID, "error", err)
 		}
+	}
+
+	// Fire alert callback for real-time evaluation
+	if s.alertCallback != nil {
+		s.alertCallback(ctx, customerID, orgID)
 	}
 
 	return nil

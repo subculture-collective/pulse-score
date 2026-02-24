@@ -13,11 +13,11 @@ import (
 
 // MemberHandler provides member management HTTP endpoints.
 type MemberHandler struct {
-	memberService memberServicer
+	memberService *service.MemberService
 }
 
 // NewMemberHandler creates a new MemberHandler.
-func NewMemberHandler(memberService memberServicer) *MemberHandler {
+func NewMemberHandler(memberService *service.MemberService) *MemberHandler {
 	return &MemberHandler{memberService: memberService}
 }
 
