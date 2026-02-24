@@ -19,6 +19,7 @@ export interface AuthOrg {
   name: string;
   slug: string;
   role: string;
+  plan: string;
 }
 
 export interface TokenPair {
@@ -62,6 +63,45 @@ export const authApi = {
       token,
       new_password: newPassword,
     }),
+};
+
+export interface BillingUsageMetric {
+  used: number;
+  limit: number;
+}
+
+export interface BillingSubscriptionResponse {
+  tier: string;
+  status: string;
+  billing_cycle: "monthly" | "annual";
+  renewal_date: string | null;
+  cancel_at_period_end: boolean;
+  usage: {
+    customers: BillingUsageMetric;
+    integrations: BillingUsageMetric;
+  };
+  features: Record<string, unknown>;
+}
+
+export interface CheckoutPayload {
+  priceId?: string;
+  tier?: string;
+  cycle?: "monthly" | "annual";
+  annual?: boolean;
+}
+
+export const billingApi = {
+  getSubscription: () =>
+    api.get<BillingSubscriptionResponse>("/billing/subscription"),
+
+  createCheckout: (payload: CheckoutPayload) =>
+    api.post<{ url: string }>("/billing/checkout", payload),
+
+  createPortalSession: () =>
+    api.post<{ url: string }>("/billing/portal-session"),
+
+  cancelAtPeriodEnd: () =>
+    api.post<{ status: string }>("/billing/cancel"),
 };
 
 // Alert types and API

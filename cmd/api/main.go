@@ -17,12 +17,14 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/onnwee/pulse-score/internal/auth"
+	billingcatalog "github.com/onnwee/pulse-score/internal/billing"
 	"github.com/onnwee/pulse-score/internal/config"
 	"github.com/onnwee/pulse-score/internal/database"
 	"github.com/onnwee/pulse-score/internal/handler"
 	"github.com/onnwee/pulse-score/internal/middleware"
 	"github.com/onnwee/pulse-score/internal/repository"
 	"github.com/onnwee/pulse-score/internal/service"
+	billingsvc "github.com/onnwee/pulse-score/internal/service/billing"
 	"github.com/onnwee/pulse-score/internal/service/scoring"
 )
 
@@ -100,9 +102,11 @@ func main() {
 		if pool != nil {
 			userRepo := repository.NewUserRepository(pool.P)
 			orgRepo := repository.NewOrganizationRepository(pool.P)
+			orgSubRepo := repository.NewOrgSubscriptionRepository(pool.P)
 			refreshTokenRepo := repository.NewRefreshTokenRepository(pool.P)
 			invitationRepo := repository.NewInvitationRepository(pool.P)
 			passwordResetRepo := repository.NewPasswordResetRepository(pool.P)
+			billingWebhookEventRepo := repository.NewBillingWebhookEventRepository(pool.P)
 
 			emailSvc := service.NewSendGridEmailService(service.SendGridConfig{
 				APIKey:      cfg.SendGrid.APIKey,
@@ -136,6 +140,20 @@ func main() {
 			onboardingEventRepo := repository.NewOnboardingEventRepository(pool.P)
 
 			// Stripe services
+			planCatalog := billingcatalog.NewCatalog(billingcatalog.PriceConfig{
+				GrowthMonthly: cfg.BillingStripe.PriceGrowthMonthly,
+				GrowthAnnual:  cfg.BillingStripe.PriceGrowthAnnual,
+				ScaleMonthly:  cfg.BillingStripe.PriceScaleMonthly,
+				ScaleAnnual:   cfg.BillingStripe.PriceScaleAnnual,
+			})
+
+			if cfg.IsProd() {
+				if err := billingcatalog.VerifyConfiguredPrices(context.Background(), cfg.BillingStripe.SecretKey, planCatalog); err != nil {
+					slog.Error("invalid Stripe billing price configuration", "error", err)
+					os.Exit(1)
+				}
+			}
+
 			stripeOAuthSvc := service.NewStripeOAuthService(service.StripeOAuthConfig{
 				ClientID:         cfg.Stripe.ClientID,
 				SecretKey:        cfg.Stripe.SecretKey,
@@ -198,6 +216,46 @@ func main() {
 				cfg.Stripe.WebhookSecret,
 				connRepo, customerRepo, subRepo, paymentRepo, eventRepo,
 				mrrSvc, paymentHealthSvc,
+			)
+
+			billingSubscriptionSvc := billingsvc.NewSubscriptionService(
+				orgSubRepo,
+				orgRepo,
+				customerRepo,
+				connRepo,
+				planCatalog,
+			)
+
+			billingLimitsSvc := billingsvc.NewLimitsService(
+				billingSubscriptionSvc,
+				customerRepo,
+				connRepo,
+				connRepo,
+				planCatalog,
+			)
+
+			billingCheckoutSvc := billingsvc.NewCheckoutService(
+				cfg.BillingStripe.SecretKey,
+				cfg.SendGrid.FrontendURL,
+				orgRepo,
+				planCatalog,
+			)
+
+			billingPortalSvc := billingsvc.NewPortalService(
+				cfg.BillingStripe.SecretKey,
+				cfg.BillingStripe.PortalReturnURL,
+				cfg.SendGrid.FrontendURL,
+				orgRepo,
+				orgSubRepo,
+			)
+
+			billingWebhookSvc := billingsvc.NewWebhookService(
+				cfg.BillingStripe.WebhookSecret,
+				pool.P,
+				orgRepo,
+				orgSubRepo,
+				billingWebhookEventRepo,
+				planCatalog,
 			)
 
 			hubspotWebhookSvc := service.NewHubSpotWebhookService(
@@ -343,6 +401,10 @@ func main() {
 			webhookHandler := handler.NewWebhookStripeHandler(stripeWebhookSvc)
 			r.Post("/webhooks/stripe", webhookHandler.HandleWebhook)
 
+			// Stripe billing webhook (public — verified by signature)
+			billingWebhookHandler := handler.NewWebhookStripeBillingHandler(billingWebhookSvc)
+			r.Post("/webhooks/stripe-billing", billingWebhookHandler.HandleWebhook)
+
 			// SendGrid webhook (public — for delivery tracking)
 			sendgridWebhookHandler := handler.NewWebhookSendGridHandler(alertHistoryRepo)
 			r.Post("/webhooks/sendgrid", sendgridWebhookHandler.HandleWebhook)
@@ -366,6 +428,21 @@ func main() {
 				r.Post("/organizations", orgHandler.Create)
 				r.Get("/organizations/current", orgHandler.GetCurrent)
 				r.Patch("/organizations/current", orgHandler.UpdateCurrent)
+
+				billingHandler := handler.NewBillingHandler(
+					billingCheckoutSvc,
+					billingPortalSvc,
+					billingSubscriptionSvc,
+				)
+				r.Route("/billing", func(r chi.Router) {
+					r.Get("/subscription", billingHandler.GetSubscription)
+					r.Group(func(r chi.Router) {
+						r.Use(middleware.RequireRole("admin"))
+						r.Post("/checkout", billingHandler.CreateCheckout)
+						r.Post("/portal-session", billingHandler.CreatePortalSession)
+						r.Post("/cancel", billingHandler.CancelSubscription)
+					})
+				})
 
 				// User profile routes
 				userSvc := service.NewUserService(userRepo, orgRepo)
@@ -451,7 +528,7 @@ func main() {
 				stripeHandler := handler.NewIntegrationStripeHandler(stripeOAuthSvc, syncOrchestrator)
 				r.Route("/integrations/stripe", func(r chi.Router) {
 					r.Use(middleware.RequireRole("admin"))
-					r.Get("/connect", stripeHandler.Connect)
+					r.With(middleware.RequireIntegrationLimit(billingLimitsSvc, "stripe")).Get("/connect", stripeHandler.Connect)
 					r.Get("/callback", stripeHandler.Callback)
 					r.Get("/status", stripeHandler.Status)
 					r.Delete("/", stripeHandler.Disconnect)
@@ -462,7 +539,7 @@ func main() {
 				hubspotHandler := handler.NewIntegrationHubSpotHandler(hubspotOAuthSvc, hubspotSyncOrchestrator)
 				r.Route("/integrations/hubspot", func(r chi.Router) {
 					r.Use(middleware.RequireRole("admin"))
-					r.Get("/connect", hubspotHandler.Connect)
+					r.With(middleware.RequireIntegrationLimit(billingLimitsSvc, "hubspot")).Get("/connect", hubspotHandler.Connect)
 					r.Get("/callback", hubspotHandler.Callback)
 					r.Get("/status", hubspotHandler.Status)
 					r.Delete("/", hubspotHandler.Disconnect)
@@ -473,7 +550,7 @@ func main() {
 				intercomHandler := handler.NewIntegrationIntercomHandler(intercomOAuthSvc, intercomSyncOrchestrator)
 				r.Route("/integrations/intercom", func(r chi.Router) {
 					r.Use(middleware.RequireRole("admin"))
-					r.Get("/connect", intercomHandler.Connect)
+					r.With(middleware.RequireIntegrationLimit(billingLimitsSvc, "intercom")).Get("/connect", intercomHandler.Connect)
 					r.Get("/callback", intercomHandler.Callback)
 					r.Get("/status", intercomHandler.Status)
 					r.Delete("/", intercomHandler.Disconnect)

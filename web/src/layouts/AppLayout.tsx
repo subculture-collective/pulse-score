@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
+import { useCallback, useState } from "react";
+import { Outlet } from "react-router-dom";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
 
@@ -8,12 +8,6 @@ export default function AppLayout() {
     return localStorage.getItem("sidebar-collapsed") === "true";
   });
   const [mobileOpen, setMobileOpen] = useState(false);
-  const location = useLocation();
-
-  // Close mobile drawer on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed((prev) => {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { stripeApi } from "@/lib/stripe";
 import BaseLayout from "@/components/BaseLayout";
@@ -7,21 +7,24 @@ import { ONBOARDING_RESUME_STEP_STORAGE_KEY } from "@/contexts/onboarding/consta
 export default function StripeCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [error, setError] = useState("");
+  const [asyncError, setAsyncError] = useState("");
 
-  useEffect(() => {
-    const code = searchParams.get("code");
-    const state = searchParams.get("state");
+  const code = searchParams.get("code");
+  const state = searchParams.get("state");
+  const error = useMemo(() => {
     const errParam = searchParams.get("error");
-
     if (errParam) {
       const desc = searchParams.get("error_description") || errParam;
-      setError(`Stripe connection failed: ${desc}`);
-      return;
+      return `Stripe connection failed: ${desc}`;
     }
-
     if (!code || !state) {
-      setError("Invalid callback parameters.");
+      return "Invalid callback parameters.";
+    }
+    return asyncError;
+  }, [searchParams, code, state, asyncError]);
+
+  useEffect(() => {
+    if (error || !code || !state) {
       return;
     }
 
@@ -37,9 +40,9 @@ export default function StripeCallbackPage() {
         navigate("/settings/integrations", { replace: true });
       })
       .catch(() => {
-        setError("Failed to complete Stripe connection.");
+        setAsyncError("Failed to complete Stripe connection.");
       });
-  }, [searchParams, navigate]);
+  }, [error, code, state, navigate]);
 
   if (error) {
     return (

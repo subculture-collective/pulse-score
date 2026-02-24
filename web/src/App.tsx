@@ -6,6 +6,7 @@ import ProtectedRoute from "@/components/ProtectedRoute";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import AppLayout from "@/layouts/AppLayout";
 import LandingPage from "@/pages/LandingPage";
+import PricingPage from "@/pages/PricingPage";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
 import DashboardPage from "@/pages/DashboardPage";
@@ -27,6 +28,7 @@ function App() {
               <Routes>
                 {/* Public marketing + auth routes */}
                 <Route path="/" element={<LandingPage />} />
+                <Route path="/pricing" element={<PricingPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/privacy" element={<PrivacyPage />} />

@@ -12,7 +12,11 @@ func clearEnv() {
 		"DB_MAX_OPEN_CONNS", "DB_MAX_IDLE_CONNS",
 		"DB_MAX_CONN_LIFETIME", "DB_HEALTH_CHECK_SEC",
 		"READ_TIMEOUT", "WRITE_TIMEOUT", "IDLE_TIMEOUT",
-		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_RPM",
+		"CORS_ALLOWED_ORIGINS", "RATE_LIMIT_RPM", "JWT_SECRET",
+		"STRIPE_BILLING_SECRET_KEY", "STRIPE_BILLING_PUBLISHABLE_KEY",
+		"STRIPE_BILLING_WEBHOOK_SECRET", "STRIPE_BILLING_PORTAL_RETURN_URL",
+		"STRIPE_BILLING_PRICE_GROWTH_MONTHLY", "STRIPE_BILLING_PRICE_GROWTH_ANNUAL",
+		"STRIPE_BILLING_PRICE_SCALE_MONTHLY", "STRIPE_BILLING_PRICE_SCALE_ANNUAL",
 	} {
 		os.Unsetenv(key)
 	}
@@ -104,6 +108,72 @@ func TestValidateDevelopment(t *testing.T) {
 
 	if err := cfg.Validate(); err != nil {
 		t.Errorf("expected no validation error in development, got %v", err)
+	}
+}
+
+func TestLoadBillingStripeFromEnv(t *testing.T) {
+	clearEnv()
+	os.Setenv("STRIPE_BILLING_SECRET_KEY", "sk_test_123")
+	os.Setenv("STRIPE_BILLING_PUBLISHABLE_KEY", "pk_test_123")
+	os.Setenv("STRIPE_BILLING_WEBHOOK_SECRET", "whsec_123")
+	os.Setenv("STRIPE_BILLING_PORTAL_RETURN_URL", "https://app.example.com/settings/billing")
+	os.Setenv("STRIPE_BILLING_PRICE_GROWTH_MONTHLY", "price_growth_monthly")
+	os.Setenv("STRIPE_BILLING_PRICE_GROWTH_ANNUAL", "price_growth_annual")
+	os.Setenv("STRIPE_BILLING_PRICE_SCALE_MONTHLY", "price_scale_monthly")
+	os.Setenv("STRIPE_BILLING_PRICE_SCALE_ANNUAL", "price_scale_annual")
+	defer clearEnv()
+
+	cfg := Load()
+
+	if cfg.BillingStripe.SecretKey != "sk_test_123" {
+		t.Errorf("expected billing secret key to load from env")
+	}
+	if cfg.BillingStripe.PublishableKey != "pk_test_123" {
+		t.Errorf("expected billing publishable key to load from env")
+	}
+	if cfg.BillingStripe.WebhookSecret != "whsec_123" {
+		t.Errorf("expected billing webhook secret to load from env")
+	}
+	if cfg.BillingStripe.PriceGrowthMonthly != "price_growth_monthly" {
+		t.Errorf("expected growth monthly price id to load from env")
+	}
+	if cfg.BillingStripe.PriceScaleAnnual != "price_scale_annual" {
+		t.Errorf("expected scale annual price id to load from env")
+	}
+}
+
+func TestValidateProductionRequiresBillingStripeConfig(t *testing.T) {
+	clearEnv()
+	os.Setenv("ENVIRONMENT", "production")
+	os.Setenv("DATABASE_URL", "postgres://prod-db")
+	os.Setenv("JWT_SECRET", "prod-super-secret")
+	defer clearEnv()
+
+	cfg := Load()
+
+	if err := cfg.Validate(); err == nil {
+		t.Fatal("expected validation error when billing stripe config is missing in production")
+	}
+}
+
+func TestValidateProductionWithBillingStripeConfig(t *testing.T) {
+	clearEnv()
+	os.Setenv("ENVIRONMENT", "production")
+	os.Setenv("DATABASE_URL", "postgres://prod-db")
+	os.Setenv("JWT_SECRET", "prod-super-secret")
+	os.Setenv("STRIPE_BILLING_SECRET_KEY", "sk_live_123")
+	os.Setenv("STRIPE_BILLING_PUBLISHABLE_KEY", "pk_live_123")
+	os.Setenv("STRIPE_BILLING_WEBHOOK_SECRET", "whsec_live_123")
+	os.Setenv("STRIPE_BILLING_PRICE_GROWTH_MONTHLY", "price_growth_monthly")
+	os.Setenv("STRIPE_BILLING_PRICE_GROWTH_ANNUAL", "price_growth_annual")
+	os.Setenv("STRIPE_BILLING_PRICE_SCALE_MONTHLY", "price_scale_monthly")
+	os.Setenv("STRIPE_BILLING_PRICE_SCALE_ANNUAL", "price_scale_annual")
+	defer clearEnv()
+
+	cfg := Load()
+
+	if err := cfg.Validate(); err != nil {
+		t.Fatalf("expected production validation to pass, got %v", err)
 	}
 }
 
