@@ -4,22 +4,24 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
 // Config holds application configuration.
 type Config struct {
-	Server   ServerConfig
-	Database DatabaseConfig
-	CORS     CORSConfig
-	Rate     RateConfig
-	JWT      JWTConfig
-	SendGrid SendGridConfig
-	Stripe   StripeConfig
-	HubSpot  HubSpotConfig
-	Intercom IntercomConfig
-	Scoring  ScoringConfig
-	Alert    AlertConfig
+	Server        ServerConfig
+	Database      DatabaseConfig
+	CORS          CORSConfig
+	Rate          RateConfig
+	JWT           JWTConfig
+	SendGrid      SendGridConfig
+	Stripe        StripeConfig
+	BillingStripe BillingStripeConfig
+	HubSpot       HubSpotConfig
+	Intercom      IntercomConfig
+	Scoring       ScoringConfig
+	Alert         AlertConfig
 }
 
 // AlertConfig holds alert engine settings.
@@ -44,6 +46,18 @@ type StripeConfig struct {
 	EncryptionKey    string // 32-byte hex-encoded AES key for token encryption
 	SyncIntervalMin  int
 	PaymentSyncDays  int
+}
+
+// BillingStripeConfig holds PulseScore-owned Stripe billing settings.
+type BillingStripeConfig struct {
+	SecretKey          string
+	PublishableKey     string
+	WebhookSecret      string
+	PortalReturnURL    string
+	PriceGrowthMonthly string
+	PriceGrowthAnnual  string
+	PriceScaleMonthly  string
+	PriceScaleAnnual   string
 }
 
 // HubSpotConfig holds HubSpot OAuth and webhook settings.
@@ -159,6 +173,16 @@ func Load() *Config {
 			SyncIntervalMin:  getInt("STRIPE_SYNC_INTERVAL_MIN", 15),
 			PaymentSyncDays:  getInt("STRIPE_PAYMENT_SYNC_DAYS", 90),
 		},
+		BillingStripe: BillingStripeConfig{
+			SecretKey:          getEnv("STRIPE_BILLING_SECRET_KEY", ""),
+			PublishableKey:     getEnv("STRIPE_BILLING_PUBLISHABLE_KEY", ""),
+			WebhookSecret:      getEnv("STRIPE_BILLING_WEBHOOK_SECRET", ""),
+			PortalReturnURL:    getEnv("STRIPE_BILLING_PORTAL_RETURN_URL", "http://localhost:5173/settings/billing"),
+			PriceGrowthMonthly: getEnv("STRIPE_BILLING_PRICE_GROWTH_MONTHLY", ""),
+			PriceGrowthAnnual:  getEnv("STRIPE_BILLING_PRICE_GROWTH_ANNUAL", ""),
+			PriceScaleMonthly:  getEnv("STRIPE_BILLING_PRICE_SCALE_MONTHLY", ""),
+			PriceScaleAnnual:   getEnv("STRIPE_BILLING_PRICE_SCALE_ANNUAL", ""),
+		},
 		HubSpot: HubSpotConfig{
 			ClientID:         getEnv("HUBSPOT_CLIENT_ID", ""),
 			ClientSecret:     getEnv("HUBSPOT_CLIENT_SECRET", ""),
@@ -195,6 +219,28 @@ func (c *Config) Validate() error {
 		}
 		if c.JWT.Secret == "" || c.JWT.Secret == "dev-secret-change-me-in-production" {
 			return fmt.Errorf("JWT_SECRET must be set to a secure value in production")
+		}
+
+		if strings.TrimSpace(c.BillingStripe.SecretKey) == "" {
+			return fmt.Errorf("STRIPE_BILLING_SECRET_KEY is required in production")
+		}
+		if strings.TrimSpace(c.BillingStripe.PublishableKey) == "" {
+			return fmt.Errorf("STRIPE_BILLING_PUBLISHABLE_KEY is required in production")
+		}
+		if strings.TrimSpace(c.BillingStripe.WebhookSecret) == "" {
+			return fmt.Errorf("STRIPE_BILLING_WEBHOOK_SECRET is required in production")
+		}
+
+		requiredPriceIDs := map[string]string{
+			"STRIPE_BILLING_PRICE_GROWTH_MONTHLY": c.BillingStripe.PriceGrowthMonthly,
+			"STRIPE_BILLING_PRICE_GROWTH_ANNUAL":  c.BillingStripe.PriceGrowthAnnual,
+			"STRIPE_BILLING_PRICE_SCALE_MONTHLY":  c.BillingStripe.PriceScaleMonthly,
+			"STRIPE_BILLING_PRICE_SCALE_ANNUAL":   c.BillingStripe.PriceScaleAnnual,
+		}
+		for name, value := range requiredPriceIDs {
+			if strings.TrimSpace(value) == "" {
+				return fmt.Errorf("%s is required in production", name)
+			}
 		}
 	}
 	return nil

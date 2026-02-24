@@ -96,3 +96,30 @@ The frontend starts on http://localhost:5173.
 | `npm run lint`    | ESLint check             |
 | `npm run format`  | Format with Prettier     |
 | `npm run preview` | Preview production build |
+
+## Billing & Subscription (Epic 12)
+
+PulseScore now includes a dedicated Stripe billing domain (separate from Stripe customer-data integration):
+
+- Plan catalog: `free`, `growth`, `scale` (`internal/billing/plans.go`)
+- Protected billing APIs:
+	- `GET /api/v1/billing/subscription`
+	- `POST /api/v1/billing/checkout` (admin)
+	- `POST /api/v1/billing/portal-session` (admin)
+	- `POST /api/v1/billing/cancel` (admin)
+- Public billing webhook:
+	- `POST /api/v1/webhooks/stripe-billing`
+
+### Required production billing env vars
+
+- `STRIPE_BILLING_SECRET_KEY`
+- `STRIPE_BILLING_PUBLISHABLE_KEY`
+- `STRIPE_BILLING_WEBHOOK_SECRET`
+- `STRIPE_BILLING_PRICE_GROWTH_MONTHLY`
+- `STRIPE_BILLING_PRICE_GROWTH_ANNUAL`
+- `STRIPE_BILLING_PRICE_SCALE_MONTHLY`
+- `STRIPE_BILLING_PRICE_SCALE_ANNUAL`
+
+Optional:
+
+- `STRIPE_BILLING_PORTAL_RETURN_URL` (defaults to `http://localhost:5173/settings/billing`)

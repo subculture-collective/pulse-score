@@ -237,3 +237,14 @@ func (r *IntegrationConnectionRepository) GetCustomerCountBySource(ctx context.C
 	}
 	return count, nil
 }
+
+// CountActiveByOrg returns the number of active integration connections for an org.
+func (r *IntegrationConnectionRepository) CountActiveByOrg(ctx context.Context, orgID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM integration_connections WHERE org_id = $1 AND status = 'active'`
+	var count int
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count active integrations: %w", err)
+	}
+	return count, nil
+}

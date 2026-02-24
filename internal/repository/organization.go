@@ -142,6 +142,73 @@ func (r *OrganizationRepository) Update(ctx context.Context, orgID uuid.UUID, na
 	return nil
 }
 
+// UpdatePlan updates an org's billing plan.
+func (r *OrganizationRepository) UpdatePlan(ctx context.Context, orgID uuid.UUID, plan string) error {
+	query := `UPDATE organizations SET plan = $2 WHERE id = $1 AND deleted_at IS NULL`
+	_, err := r.pool.Exec(ctx, query, orgID, plan)
+	if err != nil {
+		return fmt.Errorf("update org plan: %w", err)
+	}
+	return nil
+}
+
+// UpdatePlanTx updates an org's billing plan inside an existing transaction.
+func (r *OrganizationRepository) UpdatePlanTx(ctx context.Context, tx pgx.Tx, orgID uuid.UUID, plan string) error {
+	query := `UPDATE organizations SET plan = $2 WHERE id = $1 AND deleted_at IS NULL`
+	_, err := tx.Exec(ctx, query, orgID, plan)
+	if err != nil {
+		return fmt.Errorf("update org plan in tx: %w", err)
+	}
+	return nil
+}
+
+// UpdateStripeCustomerID updates an org's Stripe customer ID.
+func (r *OrganizationRepository) UpdateStripeCustomerID(ctx context.Context, orgID uuid.UUID, stripeCustomerID string) error {
+	query := `UPDATE organizations SET stripe_customer_id = $2 WHERE id = $1 AND deleted_at IS NULL`
+	_, err := r.pool.Exec(ctx, query, orgID, stripeCustomerID)
+	if err != nil {
+		return fmt.Errorf("update org stripe customer id: %w", err)
+	}
+	return nil
+}
+
+// UpdateStripeCustomerIDTx updates an org's Stripe customer ID inside an existing transaction.
+func (r *OrganizationRepository) UpdateStripeCustomerIDTx(ctx context.Context, tx pgx.Tx, orgID uuid.UUID, stripeCustomerID string) error {
+	query := `UPDATE organizations SET stripe_customer_id = $2 WHERE id = $1 AND deleted_at IS NULL`
+	_, err := tx.Exec(ctx, query, orgID, stripeCustomerID)
+	if err != nil {
+		return fmt.Errorf("update org stripe customer id in tx: %w", err)
+	}
+	return nil
+}
+
+// GetByStripeCustomerID retrieves an organization by Stripe customer ID.
+func (r *OrganizationRepository) GetByStripeCustomerID(ctx context.Context, stripeCustomerID string) (*Organization, error) {
+	query := `
+		SELECT id, name, slug, plan, COALESCE(stripe_customer_id, ''), created_at, updated_at
+		FROM organizations
+		WHERE stripe_customer_id = $1 AND deleted_at IS NULL
+		LIMIT 1`
+
+	o := &Organization{}
+	err := r.pool.QueryRow(ctx, query, stripeCustomerID).Scan(
+		&o.ID,
+		&o.Name,
+		&o.Slug,
+		&o.Plan,
+		&o.StripeCustomerID,
+		&o.CreatedAt,
+		&o.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get org by stripe customer id: %w", err)
+	}
+	return o, nil
+}
+
 // CountMembers returns the number of members in an org.
 func (r *OrganizationRepository) CountMembers(ctx context.Context, orgID uuid.UUID) (int, error) {
 	query := `SELECT COUNT(*) FROM user_organizations WHERE org_id = $1`
@@ -155,13 +222,13 @@ func (r *OrganizationRepository) CountMembers(ctx context.Context, orgID uuid.UU
 
 // OrgMember holds a member of an org with user details.
 type OrgMember struct {
-	UserID    uuid.UUID  `json:"user_id"`
-	Email     string     `json:"email"`
-	FirstName string     `json:"first_name"`
-	LastName  string     `json:"last_name"`
-	AvatarURL string     `json:"avatar_url"`
-	Role      string     `json:"role"`
-	JoinedAt  time.Time  `json:"joined_at"`
+	UserID    uuid.UUID `json:"user_id"`
+	Email     string    `json:"email"`
+	FirstName string    `json:"first_name"`
+	LastName  string    `json:"last_name"`
+	AvatarURL string    `json:"avatar_url"`
+	Role      string    `json:"role"`
+	JoinedAt  time.Time `json:"joined_at"`
 }
 
 // ListMembers returns all members of an org with user details.

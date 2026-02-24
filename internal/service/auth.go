@@ -58,6 +58,7 @@ type AuthOrg struct {
 	Name string    `json:"name"`
 	Slug string    `json:"slug"`
 	Role string    `json:"role"`
+	Plan string    `json:"plan"`
 }
 
 // RefreshRequest holds the input for token refresh.
@@ -189,6 +190,7 @@ func (s *AuthService) Register(ctx context.Context, req RegisterRequest) (*AuthR
 			Name: org.Name,
 			Slug: org.Slug,
 			Role: "owner",
+			Plan: "free",
 		},
 		Tokens: tokens,
 	}, nil
@@ -282,6 +284,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*AuthRespons
 			Name: orgDetails.Name,
 			Slug: orgDetails.Slug,
 			Role: defaultOrg.Role,
+			Plan: orgDetails.Plan,
 		},
 		Tokens: tokens,
 	}, nil
@@ -411,6 +414,7 @@ func (s *AuthService) Refresh(ctx context.Context, req RefreshRequest) (*AuthRes
 			Name: orgDetails.Name,
 			Slug: orgDetails.Slug,
 			Role: defaultOrg.Role,
+			Plan: orgDetails.Plan,
 		},
 		Tokens: tokens,
 	}, nil

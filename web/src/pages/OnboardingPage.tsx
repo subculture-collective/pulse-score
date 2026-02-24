@@ -429,8 +429,7 @@ function OnboardingContent() {
     }
   }
 
-  const steps: WizardShellStep[] = useMemo(
-    () => [
+  const steps: WizardShellStep[] = [
       {
         id: "welcome",
         label: "Welcome",
@@ -549,29 +548,7 @@ function OnboardingContent() {
           });
         },
       },
-    ],
-    [
-      welcomeValue,
-      organization?.name,
-      stripeStatus,
-      stripeBusy,
-      stripeError,
-      hubSpotStatus,
-      hubSpotBusy,
-      hubSpotError,
-      intercomStatus,
-      intercomBusy,
-      intercomError,
-      connectedProviders,
-      syncStatus,
-      previewLoading,
-      distribution,
-      atRiskCustomers,
-      fetchStripeStatus,
-      fetchHubSpotStatus,
-      fetchIntercomStatus,
-    ],
-  );
+    ];
 
   async function handleDone() {
     try {

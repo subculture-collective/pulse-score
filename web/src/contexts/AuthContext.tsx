@@ -47,6 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   });
   const [loading, setLoading] = useState(true);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const applySessionRef = useRef<(data: AuthResponse) => void>(() => undefined);
 
   const clearSession = useCallback(() => {
     setState({ user: null, organization: null, accessToken: null });
@@ -71,7 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           refreshTimer.current = setTimeout(async () => {
             try {
               const { data } = await authApi.refresh(refreshToken);
-              applySession(data);
+              applySessionRef.current(data);
             } catch {
               clearSession();
             }
@@ -96,6 +97,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [scheduleRefresh],
   );
+
+  useEffect(() => {
+    applySessionRef.current = applySession;
+  }, [applySession]);
 
   // On mount: attempt silent refresh to restore session
   useEffect(() => {
