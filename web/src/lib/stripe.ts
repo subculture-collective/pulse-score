@@ -9,15 +9,13 @@ export interface StripeStatus {
 }
 
 export const stripeApi = {
-  getConnectUrl: () =>
-    api.get<{ url: string }>("/integrations/stripe/connect"),
+  getConnectUrl: () => api.get<{ url: string }>("/integrations/stripe/connect"),
 
   getStatus: () => api.get<StripeStatus>("/integrations/stripe/status"),
 
   disconnect: () => api.delete("/integrations/stripe"),
 
-  triggerSync: () =>
-    api.post<{ message: string }>("/integrations/stripe/sync"),
+  triggerSync: () => api.post<{ message: string }>("/integrations/stripe/sync"),
 
   callback: (code: string, state: string) =>
     api.get("/integrations/stripe/callback", { params: { code, state } }),

@@ -1,7 +1,6 @@
 package handler
 
 import (
-	"encoding/json"
 	"log/slog"
 	"net/http"
 
@@ -185,7 +184,3 @@ type StripeStatusResponse struct {
 	CustomerCount int    `json:"customer_count,omitempty"`
 }
 
-// marshalJSON is a convenience wrapper to avoid importing json in callers.
-func marshalJSON(v any) ([]byte, error) {
-	return json.Marshal(v)
-}

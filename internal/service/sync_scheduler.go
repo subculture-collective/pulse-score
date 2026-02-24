@@ -13,9 +13,10 @@ import (
 
 // SyncSchedulerService runs periodic incremental syncs for all active connections.
 type SyncSchedulerService struct {
-	connRepo     *repository.IntegrationConnectionRepository
-	orchestrator *SyncOrchestratorService
-	interval     time.Duration
+	connRepo              *repository.IntegrationConnectionRepository
+	orchestrator          *SyncOrchestratorService
+	hubspotOrchestrator   *HubSpotSyncOrchestratorService
+	interval              time.Duration
 
 	// Per-connection lock to prevent overlapping syncs
 	locks map[uuid.UUID]*sync.Mutex
@@ -26,13 +27,15 @@ type SyncSchedulerService struct {
 func NewSyncSchedulerService(
 	connRepo *repository.IntegrationConnectionRepository,
 	orchestrator *SyncOrchestratorService,
+	hubspotOrchestrator *HubSpotSyncOrchestratorService,
 	intervalMinutes int,
 ) *SyncSchedulerService {
 	return &SyncSchedulerService{
-		connRepo:     connRepo,
-		orchestrator: orchestrator,
-		interval:     time.Duration(intervalMinutes) * time.Minute,
-		locks:        make(map[uuid.UUID]*sync.Mutex),
+		connRepo:            connRepo,
+		orchestrator:        orchestrator,
+		hubspotOrchestrator: hubspotOrchestrator,
+		interval:            time.Duration(intervalMinutes) * time.Minute,
+		locks:               make(map[uuid.UUID]*sync.Mutex),
 	}
 }
 
@@ -55,32 +58,60 @@ func (s *SyncSchedulerService) Start(ctx context.Context) {
 }
 
 func (s *SyncSchedulerService) runCycle(ctx context.Context) {
+	// Stripe connections
 	conns, err := s.connRepo.ListActiveByProvider(ctx, "stripe")
 	if err != nil {
-		slog.Error("scheduler: failed to list connections", "error", err)
-		return
+		slog.Error("scheduler: failed to list stripe connections", "error", err)
+	} else {
+		for _, conn := range conns {
+			lock := s.getLock(conn.OrgID)
+			if !lock.TryLock() {
+				slog.Debug("scheduler: skipping org (sync in progress)", "org_id", conn.OrgID)
+				continue
+			}
+
+			go func(orgID uuid.UUID, lastSync *time.Time) {
+				defer lock.Unlock()
+
+				syncCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+				defer cancel()
+
+				if lastSync != nil {
+					s.orchestrator.RunIncrementalSync(syncCtx, orgID, *lastSync)
+				} else {
+					s.orchestrator.RunFullSync(syncCtx, orgID)
+				}
+			}(conn.OrgID, conn.LastSyncAt)
+		}
 	}
 
-	for _, conn := range conns {
-		lock := s.getLock(conn.OrgID)
-		// Skip if already syncing
-		if !lock.TryLock() {
-			slog.Debug("scheduler: skipping org (sync in progress)", "org_id", conn.OrgID)
-			continue
-		}
+	// HubSpot connections
+	if s.hubspotOrchestrator != nil {
+		hsConns, err := s.connRepo.ListActiveByProvider(ctx, "hubspot")
+		if err != nil {
+			slog.Error("scheduler: failed to list hubspot connections", "error", err)
+		} else {
+			for _, conn := range hsConns {
+				lock := s.getLock(conn.OrgID)
+				if !lock.TryLock() {
+					slog.Debug("scheduler: skipping hubspot org (sync in progress)", "org_id", conn.OrgID)
+					continue
+				}
 
-		go func(orgID uuid.UUID, lastSync *time.Time) {
-			defer lock.Unlock()
+				go func(orgID uuid.UUID, lastSync *time.Time) {
+					defer lock.Unlock()
 
-			syncCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
-			defer cancel()
+					syncCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+					defer cancel()
 
-			if lastSync != nil {
-				s.orchestrator.RunIncrementalSync(syncCtx, orgID, *lastSync)
-			} else {
-				s.orchestrator.RunFullSync(syncCtx, orgID)
+					if lastSync != nil {
+						s.hubspotOrchestrator.RunIncrementalSync(syncCtx, orgID, *lastSync)
+					} else {
+						s.hubspotOrchestrator.RunFullSync(syncCtx, orgID)
+					}
+				}(conn.OrgID, conn.LastSyncAt)
 			}
-		}(conn.OrgID, conn.LastSyncAt)
+		}
 	}
 }
 

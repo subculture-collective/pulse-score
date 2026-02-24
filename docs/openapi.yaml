@@ -14,6 +14,7 @@ servers:
 security:
   - bearerAuth: []
 
+  # ── Tags ──
 tags:
   - name: Health
     description: Infrastructure health checks
@@ -31,6 +32,8 @@ tags:
     description: Integration management (generic)
   - name: Stripe
     description: Stripe-specific integration endpoints
+  - name: HubSpot
+    description: HubSpot CRM integration endpoints
   - name: Members
     description: Organization member management
   - name: Invitations
@@ -704,6 +707,137 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/MessageResponse"
+
+  # ── HubSpot Integration ────────────────────────────────────────
+  /integrations/hubspot/connect:
+    get:
+      tags: [HubSpot]
+      summary: Get HubSpot OAuth connect URL
+      description: Requires admin role. Returns a URL to redirect the user to HubSpot's OAuth consent screen.
+      operationId: hubspotConnect
+      responses:
+        "200":
+          description: HubSpot OAuth URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+
+  /integrations/hubspot/callback:
+    get:
+      tags: [HubSpot]
+      summary: Handle HubSpot OAuth callback
+      description: Requires admin role. Exchanges the authorization code for tokens and triggers initial sync.
+      operationId: hubspotCallback
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: error
+          in: query
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: HubSpot connected and initial sync started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /integrations/hubspot/status:
+    get:
+      tags: [HubSpot]
+      summary: Get HubSpot connection status
+      description: Requires admin role. Returns connection details including synced counts.
+      operationId: hubspotStatus
+      responses:
+        "200":
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HubSpotConnectionStatus"
+
+  /integrations/hubspot:
+    delete:
+      tags: [HubSpot]
+      summary: Disconnect HubSpot integration
+      description: Requires admin role. Revokes tokens and removes the connection.
+      operationId: hubspotDisconnect
+      responses:
+        "200":
+          description: HubSpot disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /integrations/hubspot/sync:
+    post:
+      tags: [HubSpot]
+      summary: Trigger HubSpot data sync
+      description: Requires admin role. Starts a full sync of contacts, deals, and companies.
+      operationId: hubspotSync
+      responses:
+        "202":
+          description: Sync started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /webhooks/hubspot:
+    post:
+      tags: [HubSpot]
+      summary: HubSpot webhook receiver
+      description: Public endpoint verified by HMAC-SHA256 signature. Always returns 200 to prevent retries.
+      security: []
+      operationId: hubspotWebhook
+      parameters:
+        - name: X-HubSpot-Signature-v3
+          in: header
+          required: true
+          schema:
+            type: string
+        - name: X-HubSpot-Request-Timestamp
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/HubSpotWebhookEvent"
+      responses:
+        "200":
+          description: Webhook received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
 
   # ── Members ────────────────────────────────────────────────────
   /members:
@@ -1553,6 +1687,49 @@ components:
         connected_at:
           type: string
           format: date-time
+
+    # ── HubSpot ────────────────────────────────────────────────
+    HubSpotConnectionStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        external_account_id:
+          type: string
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_sync_error:
+          type: string
+        connected_at:
+          type: string
+          format: date-time
+        contact_count:
+          type: integer
+        deal_count:
+          type: integer
+        company_count:
+          type: integer
+
+    HubSpotWebhookEvent:
+      type: object
+      properties:
+        eventId:
+          type: integer
+          format: int64
+        portalId:
+          type: integer
+          format: int64
+        subscriptionType:
+          type: string
+        objectId:
+          type: integer
+          format: int64
+        propertyName:
+          type: string
+        propertyValue:
+          type: string
 
     # ── Members ────────────────────────────────────────────────
     OrgMember:

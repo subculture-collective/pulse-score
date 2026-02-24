@@ -212,7 +212,7 @@ func (s *InvitationService) Accept(ctx context.Context, req AcceptInvitationRequ
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	var user *repository.User
 

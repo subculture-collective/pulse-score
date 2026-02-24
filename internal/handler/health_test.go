@@ -19,7 +19,9 @@ func TestLiveness(t *testing.T) {
 	}
 
 	var body map[string]string
-	json.NewDecoder(rr.Body).Decode(&body)
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if body["status"] != "ok" {
 		t.Errorf("expected status ok, got %s", body["status"])
 	}
@@ -37,7 +39,9 @@ func TestReadinessNoDatabase(t *testing.T) {
 	}
 
 	var body map[string]string
-	json.NewDecoder(rr.Body).Decode(&body)
+	if err := json.NewDecoder(rr.Body).Decode(&body); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if body["status"] != "degraded" {
 		t.Errorf("expected status degraded, got %s", body["status"])
 	}

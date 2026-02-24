@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { stripeApi, type StripeStatus } from "@/lib/stripe";
+import { hubspotApi, type HubSpotStatus } from "@/lib/hubspot";
 
-export default function StripeConnectionCard() {
-  const [status, setStatus] = useState<StripeStatus | null>(null);
+export default function HubSpotConnectionCard() {
+  const [status, setStatus] = useState<HubSpotStatus | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState("");
@@ -10,7 +10,7 @@ export default function StripeConnectionCard() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const { data } = await stripeApi.getStatus();
+      const { data } = await hubspotApi.getStatus();
       setStatus(data);
       setError("");
     } catch {
@@ -28,25 +28,25 @@ export default function StripeConnectionCard() {
     setActionLoading(true);
     setError("");
     try {
-      const { data } = await stripeApi.getConnectUrl();
+      const { data } = await hubspotApi.getConnectUrl();
       window.location.href = data.url;
     } catch {
-      setError("Failed to start Stripe connection.");
+      setError("Failed to start HubSpot connection.");
     } finally {
       setActionLoading(false);
     }
   }
 
   async function handleDisconnect() {
-    if (!confirm("Are you sure you want to disconnect Stripe?")) return;
+    if (!confirm("Are you sure you want to disconnect HubSpot?")) return;
     setActionLoading(true);
     setError("");
     try {
-      await stripeApi.disconnect();
+      await hubspotApi.disconnect();
       setStatus(null);
-      setMessage("Stripe disconnected.");
+      setMessage("HubSpot disconnected.");
     } catch {
-      setError("Failed to disconnect Stripe.");
+      setError("Failed to disconnect HubSpot.");
     } finally {
       setActionLoading(false);
     }
@@ -57,7 +57,7 @@ export default function StripeConnectionCard() {
     setError("");
     setMessage("");
     try {
-      await stripeApi.triggerSync();
+      await hubspotApi.triggerSync();
       setMessage("Sync started. This may take a few minutes.");
     } catch {
       setError("Failed to start sync.");
@@ -69,7 +69,7 @@ export default function StripeConnectionCard() {
   if (loading) {
     return (
       <div className="rounded-lg border border-gray-200 bg-white p-6">
-        <p className="text-sm text-gray-500">Loading Stripe status...</p>
+        <p className="text-sm text-gray-500">Loading HubSpot status...</p>
       </div>
     );
   }
@@ -81,9 +81,9 @@ export default function StripeConnectionCard() {
     <div className="rounded-lg border border-gray-200 bg-white p-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-orange-100">
             <svg
-              className="h-6 w-6 text-indigo-600"
+              className="h-6 w-6 text-orange-600"
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={1.5}
@@ -92,14 +92,14 @@ export default function StripeConnectionCard() {
               <path
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z"
+                d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z"
               />
             </svg>
           </div>
           <div>
-            <h3 className="text-sm font-semibold text-gray-900">Stripe</h3>
+            <h3 className="text-sm font-semibold text-gray-900">HubSpot</h3>
             <p className="text-sm text-gray-500">
-              Payment and subscription data
+              CRM contacts, deals, and companies
             </p>
           </div>
         </div>
@@ -120,16 +120,23 @@ export default function StripeConnectionCard() {
 
       {isConnected && status && (
         <div className="mt-4 space-y-2 text-sm text-gray-600">
-          {status.account_id && (
+          {status.external_account_id && (
             <p>
-              Account: <span className="font-mono">{status.account_id}</span>
+              Portal ID:{" "}
+              <span className="font-mono">{status.external_account_id}</span>
             </p>
           )}
           {status.last_sync_at && (
             <p>Last sync: {new Date(status.last_sync_at).toLocaleString()}</p>
           )}
-          {status.customer_count !== undefined && (
-            <p>Customers synced: {status.customer_count}</p>
+          {status.contact_count !== undefined && status.contact_count > 0 && (
+            <p>Contacts synced: {status.contact_count}</p>
+          )}
+          {status.deal_count !== undefined && status.deal_count > 0 && (
+            <p>Deals synced: {status.deal_count}</p>
+          )}
+          {status.company_count !== undefined && status.company_count > 0 && (
+            <p>Companies synced: {status.company_count}</p>
           )}
           {status.last_sync_error && (
             <p className="text-red-600">Last error: {status.last_sync_error}</p>
@@ -143,7 +150,7 @@ export default function StripeConnectionCard() {
             <button
               onClick={handleSync}
               disabled={actionLoading}
-              className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              className="rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
             >
               {actionLoading ? "..." : "Sync Now"}
             </button>
@@ -159,9 +166,9 @@ export default function StripeConnectionCard() {
           <button
             onClick={handleConnect}
             disabled={actionLoading}
-            className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+            className="rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
           >
-            {actionLoading ? "Connecting..." : "Connect Stripe"}
+            {actionLoading ? "Connecting..." : "Connect HubSpot"}
           </button>
         )}
       </div>

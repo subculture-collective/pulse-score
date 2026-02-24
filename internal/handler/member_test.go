@@ -70,7 +70,9 @@ func TestMemberList_Success(t *testing.T) {
 	}
 
 	var resp map[string][]service.MemberResponse
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(resp["members"]) != 2 {
 		t.Errorf("expected 2 members, got %d", len(resp["members"]))
 	}

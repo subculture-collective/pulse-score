@@ -80,7 +80,9 @@ func TestCustomerList_Success(t *testing.T) {
 	}
 
 	var resp service.CustomerListResponse
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if len(resp.Customers) != 1 {
 		t.Errorf("expected 1 customer, got %d", len(resp.Customers))
 	}

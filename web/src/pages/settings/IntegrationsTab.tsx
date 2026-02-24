@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import api from "@/lib/api";
 import { useToast } from "@/contexts/ToastContext";
 import StripeConnectionCard from "@/components/integrations/StripeConnectionCard";
+import HubSpotConnectionCard from "@/components/integrations/HubSpotConnectionCard";
 import IntegrationCard from "@/components/IntegrationCard";
 import { Loader2 } from "lucide-react";
 
@@ -43,8 +44,10 @@ export default function IntegrationsTab() {
     );
   }
 
-  // Filter out Stripe from generic list since StripeConnectionCard has its own handling
-  const otherIntegrations = integrations.filter((i) => i.provider !== "stripe");
+  // Filter out Stripe and HubSpot from generic list since they have dedicated cards
+  const otherIntegrations = integrations.filter(
+    (i) => i.provider !== "stripe" && i.provider !== "hubspot",
+  );
 
   return (
     <div className="space-y-6">
@@ -53,6 +56,13 @@ export default function IntegrationsTab() {
           Stripe
         </h3>
         <StripeConnectionCard />
+      </div>
+
+      <div>
+        <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+          HubSpot
+        </h3>
+        <HubSpotConnectionCard />
       </div>
 
       {otherIntegrations.length > 0 && (

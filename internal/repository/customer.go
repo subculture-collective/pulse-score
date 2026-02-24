@@ -129,6 +129,42 @@ func (r *CustomerRepository) UpdateMRR(ctx context.Context, customerID uuid.UUID
 	return nil
 }
 
+// GetByEmail retrieves a customer by email within an org (any source).
+func (r *CustomerRepository) GetByEmail(ctx context.Context, orgID uuid.UUID, email string) (*Customer, error) {
+	query := `
+		SELECT id, org_id, external_id, source, COALESCE(email, ''), COALESCE(name, ''),
+			COALESCE(company_name, ''), mrr_cents, currency,
+			first_seen_at, last_seen_at, COALESCE(metadata, '{}'), created_at, updated_at, deleted_at
+		FROM customers
+		WHERE org_id = $1 AND email = $2 AND deleted_at IS NULL
+		ORDER BY created_at ASC
+		LIMIT 1`
+
+	c := &Customer{}
+	err := r.pool.QueryRow(ctx, query, orgID, email).Scan(
+		&c.ID, &c.OrgID, &c.ExternalID, &c.Source, &c.Email, &c.Name,
+		&c.CompanyName, &c.MRRCents, &c.Currency,
+		&c.FirstSeenAt, &c.LastSeenAt, &c.Metadata, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get customer by email: %w", err)
+	}
+	return c, nil
+}
+
+// UpdateCompanyAndMetadata updates company_name and metadata for a customer.
+func (r *CustomerRepository) UpdateCompanyAndMetadata(ctx context.Context, customerID uuid.UUID, companyName string, metadata map[string]any) error {
+	query := `UPDATE customers SET company_name = $2, metadata = metadata || $3, updated_at = NOW() WHERE id = $1 AND deleted_at IS NULL`
+	_, err := r.pool.Exec(ctx, query, customerID, companyName, metadata)
+	if err != nil {
+		return fmt.Errorf("update company and metadata: %w", err)
+	}
+	return nil
+}
+
 // ListByOrg retrieves all non-deleted customers for an org.
 func (r *CustomerRepository) ListByOrg(ctx context.Context, orgID uuid.UUID) ([]*Customer, error) {
 	query := `
@@ -332,4 +368,48 @@ func (r *CustomerRepository) ListWithScores(ctx context.Context, params Customer
 		PerPage:    params.PerPage,
 		TotalPages: totalPages,
 	}, nil
+}
+
+// FindDuplicatesByEmail returns groups of customers that share the same email within an org.
+func (r *CustomerRepository) FindDuplicatesByEmail(ctx context.Context, orgID uuid.UUID) ([][]*Customer, error) {
+	query := `
+		SELECT id, org_id, external_id, source, COALESCE(email, ''), COALESCE(name, ''),
+			COALESCE(company_name, ''), mrr_cents, currency,
+			first_seen_at, last_seen_at, COALESCE(metadata, '{}'), created_at, updated_at, deleted_at
+		FROM customers
+		WHERE org_id = $1 AND deleted_at IS NULL AND email != ''
+			AND email IN (
+				SELECT email FROM customers
+				WHERE org_id = $1 AND deleted_at IS NULL AND email != ''
+				GROUP BY email HAVING COUNT(*) > 1
+			)
+		ORDER BY email, first_seen_at ASC NULLS LAST`
+
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("find duplicates: %w", err)
+	}
+	defer rows.Close()
+
+	byEmail := map[string][]*Customer{}
+	for rows.Next() {
+		c := &Customer{}
+		if err := rows.Scan(
+			&c.ID, &c.OrgID, &c.ExternalID, &c.Source, &c.Email, &c.Name,
+			&c.CompanyName, &c.MRRCents, &c.Currency,
+			&c.FirstSeenAt, &c.LastSeenAt, &c.Metadata, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan duplicate: %w", err)
+		}
+		byEmail[c.Email] = append(byEmail[c.Email], c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	var groups [][]*Customer
+	for _, group := range byEmail {
+		groups = append(groups, group)
+	}
+	return groups, nil
 }

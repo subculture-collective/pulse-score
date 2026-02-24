@@ -77,7 +77,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, orgID uuid.UUID, req U
 
 	// Trigger async recalculation for the org
 	if s.scheduler != nil {
-		go s.scheduler.RecalculateOrg(context.Background(), orgID)
+		go func() { _ = s.scheduler.RecalculateOrg(context.Background(), orgID) }()
 	}
 
 	return config, nil

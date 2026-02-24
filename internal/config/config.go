@@ -16,6 +16,7 @@ type Config struct {
 	JWT      JWTConfig
 	SendGrid SendGridConfig
 	Stripe   StripeConfig
+	HubSpot  HubSpotConfig
 	Scoring  ScoringConfig
 }
 
@@ -35,6 +36,16 @@ type StripeConfig struct {
 	EncryptionKey    string // 32-byte hex-encoded AES key for token encryption
 	SyncIntervalMin  int
 	PaymentSyncDays  int
+}
+
+// HubSpotConfig holds HubSpot OAuth and webhook settings.
+type HubSpotConfig struct {
+	ClientID         string
+	ClientSecret     string
+	OAuthRedirectURL string
+	EncryptionKey    string // 32-byte hex-encoded AES key for token encryption
+	WebhookSecret    string
+	SyncIntervalMin  int
 }
 
 // SendGridConfig holds email sending settings.
@@ -127,6 +138,14 @@ func Load() *Config {
 			EncryptionKey:    getEnv("STRIPE_ENCRYPTION_KEY", ""),
 			SyncIntervalMin:  getInt("STRIPE_SYNC_INTERVAL_MIN", 15),
 			PaymentSyncDays:  getInt("STRIPE_PAYMENT_SYNC_DAYS", 90),
+		},
+		HubSpot: HubSpotConfig{
+			ClientID:         getEnv("HUBSPOT_CLIENT_ID", ""),
+			ClientSecret:     getEnv("HUBSPOT_CLIENT_SECRET", ""),
+			OAuthRedirectURL: getEnv("HUBSPOT_OAUTH_REDIRECT_URL", "http://localhost:8080/api/v1/integrations/hubspot/callback"),
+			EncryptionKey:    getEnv("HUBSPOT_ENCRYPTION_KEY", ""),
+			WebhookSecret:    getEnv("HUBSPOT_WEBHOOK_SECRET", ""),
+			SyncIntervalMin:  getInt("HUBSPOT_SYNC_INTERVAL_MIN", 15),
 		},
 		Scoring: ScoringConfig{
 			RecalcIntervalMin: getInt("SCORE_RECALC_INTERVAL_MIN", 60),

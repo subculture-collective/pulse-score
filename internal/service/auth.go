@@ -199,7 +199,7 @@ func (s *AuthService) createUserAndOrg(ctx context.Context, user *repository.Use
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := s.users.Create(ctx, tx, user); err != nil {
 		return fmt.Errorf("create user: %w", err)
@@ -229,7 +229,7 @@ func (s *AuthService) Login(ctx context.Context, req LoginRequest) (*AuthRespons
 	}
 	if user == nil {
 		// Perform a dummy bcrypt compare to prevent timing attacks
-		bcrypt.CompareHashAndPassword([]byte("$2a$12$000000000000000000000000000000000000000000000000000000"), []byte(req.Password))
+		_ = bcrypt.CompareHashAndPassword([]byte("$2a$12$000000000000000000000000000000000000000000000000000000"), []byte(req.Password))
 		return nil, &AuthError{Message: "invalid email or password"}
 	}
 
@@ -501,7 +501,7 @@ func (s *AuthService) CompletePasswordReset(ctx context.Context, req PasswordRes
 	if err != nil {
 		return fmt.Errorf("begin tx: %w", err)
 	}
-	defer tx.Rollback(ctx)
+	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := s.users.UpdatePassword(ctx, tx, pr.UserID, string(passwordHash)); err != nil {
 		return fmt.Errorf("update password: %w", err)

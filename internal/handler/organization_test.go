@@ -75,7 +75,9 @@ func TestOrganizationGetCurrent_Success(t *testing.T) {
 	}
 
 	var resp service.OrgDetailResponse
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if resp.Name != "Test Org" {
 		t.Errorf("expected name 'Test Org', got %s", resp.Name)
 	}
@@ -241,7 +243,9 @@ func TestOrganizationCreate_Success(t *testing.T) {
 	}
 
 	var resp service.OrgResponse
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if resp.Name != "New Org" {
 		t.Errorf("expected name 'New Org', got %s", resp.Name)
 	}

@@ -98,7 +98,7 @@ func main() {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			w.Write([]byte(`{"message":"pong"}`))
+			_, _ = w.Write([]byte(`{"message":"pong"}`))
 		})
 
 		// Auth routes (public)
@@ -186,12 +186,45 @@ func main() {
 
 			scoringConfigSvc := scoring.NewConfigService(scoringConfigRepo, scoreScheduler)
 
+			// HubSpot repositories
+			hubspotContactRepo := repository.NewHubSpotContactRepository(pool.P)
+			hubspotDealRepo := repository.NewHubSpotDealRepository(pool.P)
+			hubspotCompanyRepo := repository.NewHubSpotCompanyRepository(pool.P)
+
+			// HubSpot services
+			hubspotOAuthSvc := service.NewHubSpotOAuthService(service.HubSpotOAuthConfig{
+				ClientID:         cfg.HubSpot.ClientID,
+				ClientSecret:     cfg.HubSpot.ClientSecret,
+				OAuthRedirectURL: cfg.HubSpot.OAuthRedirectURL,
+				EncryptionKey:    cfg.HubSpot.EncryptionKey,
+			}, connRepo)
+
+			hubspotClient := service.NewHubSpotClient()
+
+			hubspotSyncSvc := service.NewHubSpotSyncService(
+				hubspotOAuthSvc, hubspotClient,
+				hubspotContactRepo, hubspotDealRepo, hubspotCompanyRepo,
+				customerRepo, eventRepo,
+			)
+
+			customerMergeSvc := service.NewCustomerMergeService(customerRepo, hubspotContactRepo)
+
+			hubspotWebhookSvc := service.NewHubSpotWebhookService(
+				cfg.HubSpot.ClientSecret,
+				hubspotSyncSvc, customerMergeSvc,
+				connRepo, hubspotContactRepo, hubspotDealRepo, hubspotCompanyRepo, eventRepo,
+			)
+
+			hubspotOrchestrator := service.NewHubSpotSyncOrchestratorService(
+				connRepo, hubspotSyncSvc, customerMergeSvc,
+			)
+
 			// Start background services
 			bgCtx, bgCancel := context.WithCancel(context.Background())
 			defer bgCancel()
 
 			if cfg.Stripe.SyncIntervalMin > 0 {
-				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, cfg.Stripe.SyncIntervalMin)
+				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, hubspotOrchestrator, cfg.Stripe.SyncIntervalMin)
 				go syncScheduler.Start(bgCtx)
 			}
 
@@ -199,7 +232,7 @@ func main() {
 				go scoreScheduler.Start(bgCtx)
 			}
 
-			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, 60)
+			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, hubspotOAuthSvc, hubspotClient, 60)
 			go connMonitor.Start(bgCtx)
 
 			r.Post("/auth/register", authHandler.Register)
@@ -214,6 +247,10 @@ func main() {
 			// Stripe webhook (public — verified by signature)
 			webhookHandler := handler.NewWebhookStripeHandler(stripeWebhookSvc)
 			r.Post("/webhooks/stripe", webhookHandler.HandleWebhook)
+
+			// HubSpot webhook (public — verified by signature)
+			hubspotWebhookHandler := handler.NewWebhookHubSpotHandler(hubspotWebhookSvc)
+			r.Post("/webhooks/hubspot", hubspotWebhookHandler.HandleWebhook)
 
 			// Protected routes (JWT required)
 			r.Group(func(r chi.Router) {
@@ -299,6 +336,17 @@ func main() {
 					r.Get("/status", stripeHandler.Status)
 					r.Delete("/", stripeHandler.Disconnect)
 					r.Post("/sync", stripeHandler.TriggerSync)
+				})
+
+				// HubSpot integration routes (admin+ required)
+				hubspotHandler := handler.NewIntegrationHubSpotHandler(hubspotOAuthSvc, hubspotOrchestrator)
+				r.Route("/integrations/hubspot", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Get("/connect", hubspotHandler.Connect)
+					r.Get("/callback", hubspotHandler.Callback)
+					r.Get("/status", hubspotHandler.Status)
+					r.Delete("/", hubspotHandler.Disconnect)
+					r.Post("/sync", hubspotHandler.TriggerSync)
 				})
 
 				// Health scoring routes

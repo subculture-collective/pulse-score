@@ -211,3 +211,28 @@ func (r *IntegrationConnectionRepository) GetCustomerCountBySource(ctx context.C
 	}
 	return count, nil
 }
+
+// GetByProviderAndExternalID finds a connection by provider and external account ID.
+func (r *IntegrationConnectionRepository) GetByProviderAndExternalID(ctx context.Context, provider, externalAccountID string) (*IntegrationConnection, error) {
+	query := `
+		SELECT id, org_id, provider, status, access_token_encrypted, refresh_token_encrypted,
+			token_expires_at, external_account_id, scopes, COALESCE(metadata, '{}'),
+			last_sync_at, COALESCE(last_sync_error, ''), created_at, updated_at
+		FROM integration_connections
+		WHERE provider = $1 AND external_account_id = $2`
+
+	conn := &IntegrationConnection{}
+	err := r.pool.QueryRow(ctx, query, provider, externalAccountID).Scan(
+		&conn.ID, &conn.OrgID, &conn.Provider, &conn.Status,
+		&conn.AccessTokenEncrypted, &conn.RefreshTokenEncrypted,
+		&conn.TokenExpiresAt, &conn.ExternalAccountID, &conn.Scopes, &conn.Metadata,
+		&conn.LastSyncAt, &conn.LastSyncError, &conn.CreatedAt, &conn.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get by provider and external id: %w", err)
+	}
+	return conn, nil
+}

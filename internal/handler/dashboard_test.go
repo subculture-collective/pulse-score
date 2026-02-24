@@ -66,7 +66,9 @@ func TestDashboardGetSummary_Success(t *testing.T) {
 	}
 
 	var resp service.DashboardSummary
-	json.NewDecoder(rr.Body).Decode(&resp)
+	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
 	if resp.TotalCustomers != 42 {
 		t.Errorf("expected 42 customers, got %d", resp.TotalCustomers)
 	}

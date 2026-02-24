@@ -12,6 +12,7 @@ import ScoringTab from "@/pages/settings/ScoringTab";
 import BillingTab from "@/pages/settings/BillingTab";
 import TeamTab from "@/pages/settings/TeamTab";
 import StripeCallbackPage from "@/pages/settings/StripeCallbackPage";
+import HubSpotCallbackPage from "@/pages/settings/HubSpotCallbackPage";
 
 const tabs = [
   { path: "organization", label: "Organization" },
@@ -69,6 +70,7 @@ export default function SettingsPage() {
         <Route path="billing" element={<BillingTab />} />
         <Route path="team" element={<TeamTab />} />
         <Route path="stripe/callback" element={<StripeCallbackPage />} />
+        <Route path="hubspot/callback" element={<HubSpotCallbackPage />} />
         <Route index element={<Navigate to="organization" replace />} />
       </Routes>
     </div>
