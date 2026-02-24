@@ -26,7 +26,7 @@ export default function LoginPage() {
     try {
       const { data } = await authApi.login({ email, password });
       setSession(data);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       if (err instanceof AxiosError && err.response?.data?.error) {
         setError(err.response.data.error);
@@ -110,7 +110,7 @@ export default function LoginPage() {
             Forgot password?
           </Link>
           <Link
-            to="/auth/register"
+            to="/register"
             className="text-indigo-600 hover:text-indigo-500"
           >
             Create an account
