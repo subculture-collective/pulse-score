@@ -219,12 +219,42 @@ func main() {
 				connRepo, hubspotSyncSvc, customerMergeSvc,
 			)
 
+			// Intercom repositories
+			intercomContactRepo := repository.NewIntercomContactRepository(pool.P)
+			intercomConversationRepo := repository.NewIntercomConversationRepository(pool.P)
+
+			// Intercom services
+			intercomOAuthSvc := service.NewIntercomOAuthService(service.IntercomOAuthConfig{
+				ClientID:         cfg.Intercom.ClientID,
+				ClientSecret:     cfg.Intercom.ClientSecret,
+				OAuthRedirectURL: cfg.Intercom.OAuthRedirectURL,
+				EncryptionKey:    cfg.Intercom.EncryptionKey,
+			}, connRepo)
+
+			intercomClient := service.NewIntercomClient()
+
+			intercomSyncSvc := service.NewIntercomSyncService(
+				intercomOAuthSvc, intercomClient,
+				intercomContactRepo, intercomConversationRepo,
+				customerRepo, eventRepo,
+			)
+
+			intercomWebhookSvc := service.NewIntercomWebhookService(
+				cfg.Intercom.WebhookSecret,
+				intercomSyncSvc, customerMergeSvc,
+				connRepo, intercomContactRepo, intercomConversationRepo, eventRepo,
+			)
+
+			intercomOrchestrator := service.NewIntercomSyncOrchestratorService(
+				connRepo, intercomSyncSvc, customerMergeSvc,
+			)
+
 			// Start background services
 			bgCtx, bgCancel := context.WithCancel(context.Background())
 			defer bgCancel()
 
 			if cfg.Stripe.SyncIntervalMin > 0 {
-				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, hubspotOrchestrator, cfg.Stripe.SyncIntervalMin)
+				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, hubspotOrchestrator, intercomOrchestrator, cfg.Stripe.SyncIntervalMin)
 				go syncScheduler.Start(bgCtx)
 			}
 
@@ -232,7 +262,7 @@ func main() {
 				go scoreScheduler.Start(bgCtx)
 			}
 
-			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, hubspotOAuthSvc, hubspotClient, 60)
+			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, hubspotOAuthSvc, hubspotClient, intercomOAuthSvc, intercomClient, 60)
 			go connMonitor.Start(bgCtx)
 
 			r.Post("/auth/register", authHandler.Register)
@@ -251,6 +281,10 @@ func main() {
 			// HubSpot webhook (public — verified by signature)
 			hubspotWebhookHandler := handler.NewWebhookHubSpotHandler(hubspotWebhookSvc)
 			r.Post("/webhooks/hubspot", hubspotWebhookHandler.HandleWebhook)
+
+			// Intercom webhook (public — verified by signature)
+			intercomWebhookHandler := handler.NewWebhookIntercomHandler(intercomWebhookSvc)
+			r.Post("/webhooks/intercom", intercomWebhookHandler.HandleWebhook)
 
 			// Protected routes (JWT required)
 			r.Group(func(r chi.Router) {
@@ -347,6 +381,17 @@ func main() {
 					r.Get("/status", hubspotHandler.Status)
 					r.Delete("/", hubspotHandler.Disconnect)
 					r.Post("/sync", hubspotHandler.TriggerSync)
+				})
+
+				// Intercom integration routes (admin+ required)
+				intercomHandler := handler.NewIntegrationIntercomHandler(intercomOAuthSvc, intercomOrchestrator)
+				r.Route("/integrations/intercom", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Get("/connect", intercomHandler.Connect)
+					r.Get("/callback", intercomHandler.Callback)
+					r.Get("/status", intercomHandler.Status)
+					r.Delete("/", intercomHandler.Disconnect)
+					r.Post("/sync", intercomHandler.TriggerSync)
 				})
 
 				// Health scoring routes

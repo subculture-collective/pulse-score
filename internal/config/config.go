@@ -17,6 +17,7 @@ type Config struct {
 	SendGrid SendGridConfig
 	Stripe   StripeConfig
 	HubSpot  HubSpotConfig
+	Intercom IntercomConfig
 	Scoring  ScoringConfig
 }
 
@@ -40,6 +41,16 @@ type StripeConfig struct {
 
 // HubSpotConfig holds HubSpot OAuth and webhook settings.
 type HubSpotConfig struct {
+	ClientID         string
+	ClientSecret     string
+	OAuthRedirectURL string
+	EncryptionKey    string // 32-byte hex-encoded AES key for token encryption
+	WebhookSecret    string
+	SyncIntervalMin  int
+}
+
+// IntercomConfig holds Intercom OAuth and webhook settings.
+type IntercomConfig struct {
 	ClientID         string
 	ClientSecret     string
 	OAuthRedirectURL string
@@ -146,6 +157,14 @@ func Load() *Config {
 			EncryptionKey:    getEnv("HUBSPOT_ENCRYPTION_KEY", ""),
 			WebhookSecret:    getEnv("HUBSPOT_WEBHOOK_SECRET", ""),
 			SyncIntervalMin:  getInt("HUBSPOT_SYNC_INTERVAL_MIN", 15),
+		},
+		Intercom: IntercomConfig{
+			ClientID:         getEnv("INTERCOM_CLIENT_ID", ""),
+			ClientSecret:     getEnv("INTERCOM_CLIENT_SECRET", ""),
+			OAuthRedirectURL: getEnv("INTERCOM_OAUTH_REDIRECT_URL", "http://localhost:8080/api/v1/integrations/intercom/callback"),
+			EncryptionKey:    getEnv("INTERCOM_ENCRYPTION_KEY", ""),
+			WebhookSecret:    getEnv("INTERCOM_WEBHOOK_SECRET", ""),
+			SyncIntervalMin:  getInt("INTERCOM_SYNC_INTERVAL_MIN", 15),
 		},
 		Scoring: ScoringConfig{
 			RecalcIntervalMin: getInt("SCORE_RECALC_INTERVAL_MIN", 60),

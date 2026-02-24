@@ -16,6 +16,7 @@ type SyncSchedulerService struct {
 	connRepo              *repository.IntegrationConnectionRepository
 	orchestrator          *SyncOrchestratorService
 	hubspotOrchestrator   *HubSpotSyncOrchestratorService
+	intercomOrchestrator  *IntercomSyncOrchestratorService
 	interval              time.Duration
 
 	// Per-connection lock to prevent overlapping syncs
@@ -28,14 +29,16 @@ func NewSyncSchedulerService(
 	connRepo *repository.IntegrationConnectionRepository,
 	orchestrator *SyncOrchestratorService,
 	hubspotOrchestrator *HubSpotSyncOrchestratorService,
+	intercomOrchestrator *IntercomSyncOrchestratorService,
 	intervalMinutes int,
 ) *SyncSchedulerService {
 	return &SyncSchedulerService{
-		connRepo:            connRepo,
-		orchestrator:        orchestrator,
-		hubspotOrchestrator: hubspotOrchestrator,
-		interval:            time.Duration(intervalMinutes) * time.Minute,
-		locks:               make(map[uuid.UUID]*sync.Mutex),
+		connRepo:             connRepo,
+		orchestrator:         orchestrator,
+		hubspotOrchestrator:  hubspotOrchestrator,
+		intercomOrchestrator: intercomOrchestrator,
+		interval:             time.Duration(intervalMinutes) * time.Minute,
+		locks:                make(map[uuid.UUID]*sync.Mutex),
 	}
 }
 
@@ -108,6 +111,35 @@ func (s *SyncSchedulerService) runCycle(ctx context.Context) {
 						s.hubspotOrchestrator.RunIncrementalSync(syncCtx, orgID, *lastSync)
 					} else {
 						s.hubspotOrchestrator.RunFullSync(syncCtx, orgID)
+					}
+				}(conn.OrgID, conn.LastSyncAt)
+			}
+		}
+	}
+
+	// Intercom connections
+	if s.intercomOrchestrator != nil {
+		icConns, err := s.connRepo.ListActiveByProvider(ctx, "intercom")
+		if err != nil {
+			slog.Error("scheduler: failed to list intercom connections", "error", err)
+		} else {
+			for _, conn := range icConns {
+				lock := s.getLock(conn.OrgID)
+				if !lock.TryLock() {
+					slog.Debug("scheduler: skipping intercom org (sync in progress)", "org_id", conn.OrgID)
+					continue
+				}
+
+				go func(orgID uuid.UUID, lastSync *time.Time) {
+					defer lock.Unlock()
+
+					syncCtx, cancel := context.WithTimeout(ctx, 10*time.Minute)
+					defer cancel()
+
+					if lastSync != nil {
+						s.intercomOrchestrator.RunIncrementalSync(syncCtx, orgID, *lastSync)
+					} else {
+						s.intercomOrchestrator.RunFullSync(syncCtx, orgID)
 					}
 				}(conn.OrgID, conn.LastSyncAt)
 			}

@@ -17,6 +17,8 @@ type ConnectionMonitorService struct {
 	oauthSvc       *StripeOAuthService
 	hubspotOAuth   *HubSpotOAuthService
 	hubspotClient  *HubSpotClient
+	intercomOAuth  *IntercomOAuthService
+	intercomClient *IntercomClient
 	interval       time.Duration
 }
 
@@ -26,14 +28,18 @@ func NewConnectionMonitorService(
 	oauthSvc *StripeOAuthService,
 	hubspotOAuth *HubSpotOAuthService,
 	hubspotClient *HubSpotClient,
+	intercomOAuth *IntercomOAuthService,
+	intercomClient *IntercomClient,
 	intervalMinutes int,
 ) *ConnectionMonitorService {
 	return &ConnectionMonitorService{
-		connRepo:      connRepo,
-		oauthSvc:      oauthSvc,
-		hubspotOAuth:  hubspotOAuth,
-		hubspotClient: hubspotClient,
-		interval:      time.Duration(intervalMinutes) * time.Minute,
+		connRepo:       connRepo,
+		oauthSvc:       oauthSvc,
+		hubspotOAuth:   hubspotOAuth,
+		hubspotClient:  hubspotClient,
+		intercomOAuth:  intercomOAuth,
+		intercomClient: intercomClient,
+		interval:       time.Duration(intervalMinutes) * time.Minute,
 	}
 }
 
@@ -80,6 +86,23 @@ func (s *ConnectionMonitorService) checkAll(ctx context.Context) {
 			for _, conn := range hsConns {
 				if err := s.checkHubSpotConnection(ctx, conn); err != nil {
 					slog.Error("monitor: hubspot connection check failed",
+						"org_id", conn.OrgID,
+						"error", err,
+					)
+				}
+			}
+		}
+	}
+
+	// Check Intercom connections
+	if s.intercomOAuth != nil && s.intercomClient != nil {
+		icConns, err := s.connRepo.ListActiveByProvider(ctx, "intercom")
+		if err != nil {
+			slog.Error("monitor: failed to list intercom connections", "error", err)
+		} else {
+			for _, conn := range icConns {
+				if err := s.checkIntercomConnection(ctx, conn); err != nil {
+					slog.Error("monitor: intercom connection check failed",
 						"org_id", conn.OrgID,
 						"error", err,
 					)
@@ -186,6 +209,52 @@ func (s *ConnectionMonitorService) checkHubSpotConnection(ctx context.Context, c
 				)
 				if err := s.connRepo.UpdateSyncStatus(ctx, conn.OrgID, "hubspot", "disconnected", nil); err != nil {
 					slog.Error("monitor: failed to disable hubspot connection", "error", err)
+				}
+			}
+		}
+
+		return err
+	}
+
+	return nil
+}
+
+func (s *ConnectionMonitorService) checkIntercomConnection(ctx context.Context, conn *repository.IntegrationConnection) error {
+	accessToken, err := s.intercomOAuth.GetAccessToken(ctx, conn.OrgID)
+	if err != nil {
+		if err := s.connRepo.UpdateSyncStatus(ctx, conn.OrgID, "intercom", "error", nil); err != nil {
+			slog.Error("monitor: failed to update intercom status", "error", err)
+		}
+		return err
+	}
+
+	// Lightweight API call: list 1 contact to verify token
+	_, err = s.intercomClient.ListContacts(ctx, accessToken, "")
+	if err != nil {
+		slog.Warn("monitor: Intercom API call failed",
+			"org_id", conn.OrgID,
+			"error", err,
+		)
+
+		if err := s.connRepo.UpdateErrorCount(ctx, conn.OrgID, "intercom", err.Error()); err != nil {
+			slog.Error("monitor: failed to update intercom error count", "error", err)
+		}
+
+		updatedConn, lookupErr := s.connRepo.GetByOrgAndProvider(ctx, conn.OrgID, "intercom")
+		if lookupErr == nil && updatedConn != nil {
+			errorCount := 0
+			if v, ok := updatedConn.Metadata["error_count"]; ok {
+				if n, ok := v.(float64); ok {
+					errorCount = int(n)
+				}
+			}
+			if errorCount >= 5 {
+				slog.Error("monitor: disabling intercom connection after too many failures",
+					"org_id", conn.OrgID,
+					"error_count", errorCount,
+				)
+				if err := s.connRepo.UpdateSyncStatus(ctx, conn.OrgID, "intercom", "disconnected", nil); err != nil {
+					slog.Error("monitor: failed to disable intercom connection", "error", err)
 				}
 			}
 		}
