@@ -58,14 +58,21 @@ export default function NotificationBell() {
   async function handleMarkRead(id: string) {
     await notificationsApi.markRead(id);
     setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read_at: new Date().toISOString() } : n))
+      prev.map((n) =>
+        n.id === id ? { ...n, read_at: new Date().toISOString() } : n,
+      ),
     );
     setUnreadCount((c) => Math.max(0, c - 1));
   }
 
   async function handleMarkAllRead() {
     await notificationsApi.markAllRead();
-    setNotifications((prev) => prev.map((n) => ({ ...n, read_at: n.read_at ?? new Date().toISOString() })));
+    setNotifications((prev) =>
+      prev.map((n) => ({
+        ...n,
+        read_at: n.read_at ?? new Date().toISOString(),
+      })),
+    );
     setUnreadCount(0);
   }
 

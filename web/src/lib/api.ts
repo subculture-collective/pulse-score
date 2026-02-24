@@ -100,8 +100,7 @@ export const billingApi = {
   createPortalSession: () =>
     api.post<{ url: string }>("/billing/portal-session"),
 
-  cancelAtPeriodEnd: () =>
-    api.post<{ status: string }>("/billing/cancel"),
+  cancelAtPeriodEnd: () => api.post<{ status: string }>("/billing/cancel"),
 };
 
 // Alert types and API
@@ -160,26 +159,39 @@ export interface UpdateAlertRulePayload {
 export const alertsApi = {
   listRules: () => api.get<{ rules: AlertRule[] }>("/alerts/rules"),
 
-  getRule: (id: string) => api.get<{ rule: AlertRule }>(`/alerts/rules/${encodeURIComponent(id)}`),
+  getRule: (id: string) =>
+    api.get<{ rule: AlertRule }>(`/alerts/rules/${encodeURIComponent(id)}`),
 
   createRule: (data: CreateAlertRulePayload) =>
     api.post<{ rule: AlertRule }>("/alerts/rules", data),
 
   updateRule: (id: string, data: UpdateAlertRulePayload) =>
-    api.patch<{ rule: AlertRule }>(`/alerts/rules/${encodeURIComponent(id)}`, data),
+    api.patch<{ rule: AlertRule }>(
+      `/alerts/rules/${encodeURIComponent(id)}`,
+      data,
+    ),
 
   deleteRule: (id: string) =>
     api.delete(`/alerts/rules/${encodeURIComponent(id)}`),
 
-  listHistory: (params?: { status?: string; limit?: number; offset?: number }) =>
-    api.get<{ history: AlertHistory[]; total: number; limit: number; offset: number }>(
-      "/alerts/history",
-      { params },
-    ),
+  listHistory: (params?: {
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) =>
+    api.get<{
+      history: AlertHistory[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>("/alerts/history", { params }),
 
   getStats: () => api.get<Record<string, number>>("/alerts/stats"),
 
-  listRuleHistory: (ruleId: string, params?: { limit?: number; offset?: number }) =>
+  listRuleHistory: (
+    ruleId: string,
+    params?: { limit?: number; offset?: number },
+  ) =>
     api.get<{ history: AlertHistory[] }>(
       `/alerts/rules/${encodeURIComponent(ruleId)}/history`,
       { params },
@@ -228,19 +240,19 @@ export interface AppNotification {
 
 export const notificationsApi = {
   list: (params?: { limit?: number; offset?: number }) =>
-    api.get<{ notifications: AppNotification[]; total: number; limit: number; offset: number }>(
-      "/notifications",
-      { params },
-    ),
+    api.get<{
+      notifications: AppNotification[];
+      total: number;
+      limit: number;
+      offset: number;
+    }>("/notifications", { params }),
 
-  unreadCount: () =>
-    api.get<{ count: number }>("/notifications/unread-count"),
+  unreadCount: () => api.get<{ count: number }>("/notifications/unread-count"),
 
   markRead: (id: string) =>
     api.post(`/notifications/${encodeURIComponent(id)}/read`),
 
-  markAllRead: () =>
-    api.post("/notifications/read-all"),
+  markAllRead: () => api.post("/notifications/read-all"),
 };
 
 export type OnboardingStepId =

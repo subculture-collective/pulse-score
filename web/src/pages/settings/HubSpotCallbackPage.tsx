@@ -31,7 +31,9 @@ export default function HubSpotCallbackPage() {
     hubspotApi
       .callback(code, state)
       .then(() => {
-        const resumeStep = localStorage.getItem(ONBOARDING_RESUME_STEP_STORAGE_KEY);
+        const resumeStep = localStorage.getItem(
+          ONBOARDING_RESUME_STEP_STORAGE_KEY,
+        );
         if (resumeStep) {
           localStorage.removeItem(ONBOARDING_RESUME_STEP_STORAGE_KEY);
           navigate(`/onboarding?step=${resumeStep}`, { replace: true });

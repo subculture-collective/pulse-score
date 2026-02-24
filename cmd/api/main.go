@@ -28,49 +28,66 @@ import (
 	"github.com/onnwee/pulse-score/internal/service/scoring"
 )
 
-func main() {
-	// Structured logger
-	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	}))
-	slog.SetDefault(logger)
+const (
+	corsMaxAgeSeconds                = 300
+	connectionMonitorIntervalSeconds = 60
+)
 
-	// Configuration
+func main() {
+	initLogger()
+
+	cfg := loadAndValidateConfig()
+	pool := openDatabase(cfg)
+	if pool != nil {
+		defer pool.P.Close()
+	}
+
+	jwtMgr := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
+	r := newRouter(cfg, pool, jwtMgr)
+	srv := newHTTPServer(cfg, r)
+	runServerWithGracefulShutdown(srv, cfg.Server.Environment)
+}
+
+func initLogger() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelInfo}))
+	slog.SetDefault(logger)
+}
+
+func loadAndValidateConfig() *config.Config {
 	cfg := config.Load()
 	if err := cfg.Validate(); err != nil {
 		slog.Error("invalid configuration", "error", err)
 		os.Exit(1)
 	}
+	return cfg
+}
 
-	// Database connection (pgxpool)
-	var pool *database.Pool
-	if cfg.Database.URL != "" {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-
-		var err error
-		dbPool, err := database.NewPool(ctx, database.PoolConfig{
-			URL:               cfg.Database.URL,
-			MaxConns:          int32(cfg.Database.MaxOpenConns),
-			MinConns:          int32(cfg.Database.MaxIdleConns),
-			MaxConnLifetime:   time.Duration(cfg.Database.MaxConnLifetime) * time.Second,
-			HealthCheckPeriod: time.Duration(cfg.Database.HealthCheckSec) * time.Second,
-		})
-		if err != nil {
-			slog.Warn("database not reachable at startup", "error", err)
-		} else {
-			pool = &database.Pool{P: dbPool}
-			defer dbPool.Close()
-		}
+func openDatabase(cfg *config.Config) *database.Pool {
+	if cfg.Database.URL == "" {
+		return nil
 	}
 
-	// JWT manager
-	jwtMgr := auth.NewJWTManager(cfg.JWT.Secret, cfg.JWT.AccessTTL, cfg.JWT.RefreshTTL)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	// Router
+	dbPool, err := database.NewPool(ctx, database.PoolConfig{
+		URL:               cfg.Database.URL,
+		MaxConns:          int32(cfg.Database.MaxOpenConns),
+		MinConns:          int32(cfg.Database.MaxIdleConns),
+		MaxConnLifetime:   time.Duration(cfg.Database.MaxConnLifetime) * time.Second,
+		HealthCheckPeriod: time.Duration(cfg.Database.HealthCheckSec) * time.Second,
+	})
+	if err != nil {
+		slog.Warn("database not reachable at startup", "error", err)
+		return nil
+	}
+
+	return &database.Pool{P: dbPool}
+}
+
+func newRouter(cfg *config.Config, pool *database.Pool, jwtMgr *auth.JWTManager) *chi.Mux {
 	r := chi.NewRouter()
 
-	// Global middleware
 	r.Use(chimw.RequestID)
 	r.Use(chimw.RealIP)
 	r.Use(chimw.Logger)
@@ -82,16 +99,19 @@ func main() {
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-Request-ID", "X-Organization-ID"},
 		ExposedHeaders:   []string{"X-Request-ID"},
 		AllowCredentials: true,
-		MaxAge:           300,
+		MaxAge:           corsMaxAgeSeconds,
 	}))
 	r.Use(httprate.LimitByIP(cfg.Rate.RequestsPerMinute, time.Minute))
 
-	// Health checks (no auth required)
 	health := handler.NewHealthHandler(pool)
 	r.Get("/healthz", health.Liveness)
 	r.Get("/readyz", health.Readiness)
 
-	// API v1 route group
+	registerAPIRoutes(r, cfg, pool, jwtMgr)
+	return r
+}
+
+func registerAPIRoutes(r *chi.Mux, cfg *config.Config, pool *database.Pool, jwtMgr *auth.JWTManager) {
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
@@ -331,10 +351,17 @@ func main() {
 			notifPrefSvc := service.NewNotificationPreferenceService(notifPrefRepo)
 
 			alertScheduler := service.NewAlertScheduler(
-				alertEngine, emailSvc, emailTemplateSvc,
-				alertHistoryRepo, alertRuleRepo, userRepo,
-				notifPrefSvc,
-				cfg.Alert.EvalIntervalMin, cfg.SendGrid.FrontendURL,
+				service.AlertSchedulerDeps{
+					Engine:       alertEngine,
+					EmailService: emailSvc,
+					Templates:    emailTemplateSvc,
+					AlertHistory: alertHistoryRepo,
+					AlertRules:   alertRuleRepo,
+					UserRepo:     userRepo,
+					NotifPrefSvc: notifPrefSvc,
+				},
+				cfg.Alert.EvalIntervalMin,
+				cfg.SendGrid.FrontendURL,
 			)
 
 			// Wire in-app notifications into the alert scheduler
@@ -380,7 +407,7 @@ func main() {
 				hubspotClient,
 				intercomOAuthSvc,
 				intercomClient,
-				60,
+				connectionMonitorIntervalSeconds,
 			)
 			go connMonitor.Start(bgCtx)
 
@@ -582,23 +609,25 @@ func main() {
 			})
 		}
 	})
+}
 
-	// Server
+func newHTTPServer(cfg *config.Config, handler http.Handler) *http.Server {
 	addr := fmt.Sprintf("%s:%s", cfg.Server.Host, cfg.Server.Port)
-	srv := &http.Server{
+	return &http.Server{
 		Addr:         addr,
-		Handler:      r,
+		Handler:      handler,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,
 		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
+}
 
-	// Graceful shutdown
+func runServerWithGracefulShutdown(srv *http.Server, environment string) {
 	done := make(chan os.Signal, 1)
 	signal.Notify(done, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
-		slog.Info("starting PulseScore API", "addr", addr, "env", cfg.Server.Environment)
+		slog.Info("starting PulseScore API", "addr", srv.Addr, "env", environment)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("server error", "error", err)
 			os.Exit(1)

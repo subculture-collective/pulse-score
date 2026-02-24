@@ -22,13 +22,7 @@ const industries = [
   "Other",
 ];
 
-const companySizes = [
-  "1-10",
-  "11-50",
-  "51-200",
-  "201-500",
-  "500+",
-];
+const companySizes = ["1-10", "11-50", "51-200", "201-500", "500+"];
 
 export default function WelcomeStep({
   value,
@@ -41,8 +35,8 @@ export default function WelcomeStep({
       description="Let’s configure your organization so we can personalize scoring and insights."
     >
       <div className="mb-5 rounded-lg border border-indigo-200 bg-indigo-50 p-4 text-sm text-indigo-700">
-        You’re about to connect customer data and generate your first health score
-        preview. It usually takes just a few minutes.
+        You’re about to connect customer data and generate your first health
+        score preview. It usually takes just a few minutes.
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">

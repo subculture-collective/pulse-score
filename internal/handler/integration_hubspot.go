@@ -1,11 +1,12 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"net/http"
 
-	"github.com/onnwee/pulse-score/internal/auth"
+	"github.com/google/uuid"
 	"github.com/onnwee/pulse-score/internal/service"
 )
 
@@ -25,94 +26,42 @@ func NewIntegrationHubSpotHandler(oauthSvc *service.HubSpotOAuthService, orchest
 
 // Connect handles GET /api/v1/integrations/hubspot/connect.
 func (h *IntegrationHubSpotHandler) Connect(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	connectURL, err := h.oauthSvc.ConnectURL(orgID)
-	if err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"url": connectURL})
+	integrationConnect(w, r, h.oauthSvc.ConnectURL)
 }
 
 // Callback handles GET /api/v1/integrations/hubspot/callback.
 func (h *IntegrationHubSpotHandler) Callback(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	code := r.URL.Query().Get("code")
-	state := r.URL.Query().Get("state")
-
-	if errMsg := r.URL.Query().Get("error"); errMsg != "" {
-		errDesc := r.URL.Query().Get("error_description")
-		slog.Warn("hubspot oauth error", "error", errMsg, "description", errDesc)
-		writeJSON(w, http.StatusBadRequest, errorResponse("HubSpot connection failed: "+errDesc))
-		return
-	}
-
-	if err := h.oauthSvc.ExchangeCode(r.Context(), orgID, code, state); err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	// Trigger initial full sync in background
-	go h.orchestrator.RunFullSync(r.Context(), orgID)
-
-	writeJSON(w, http.StatusOK, map[string]string{"message": "HubSpot connected successfully. Initial sync started."})
+	integrationCallback(
+		w,
+		r,
+		"hubspot",
+		"HubSpot",
+		"HubSpot connected successfully. Initial sync started.",
+		h.oauthSvc.ExchangeCode,
+		func(ctx context.Context, orgID uuid.UUID) { h.orchestrator.RunFullSync(ctx, orgID) },
+	)
 }
 
 // Status handles GET /api/v1/integrations/hubspot/status.
 func (h *IntegrationHubSpotHandler) Status(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	status, err := h.oauthSvc.GetStatus(r.Context(), orgID)
-	if err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, status)
+	integrationStatus(w, r, func(ctx context.Context, orgID uuid.UUID) (any, error) {
+		return h.oauthSvc.GetStatus(ctx, orgID)
+	})
 }
 
 // Disconnect handles DELETE /api/v1/integrations/hubspot.
 func (h *IntegrationHubSpotHandler) Disconnect(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	if err := h.oauthSvc.Disconnect(r.Context(), orgID); err != nil {
-		handleServiceError(w, err)
-		return
-	}
-
-	writeJSON(w, http.StatusOK, map[string]string{"message": "HubSpot disconnected"})
+	integrationDisconnect(w, r, h.oauthSvc.Disconnect, "HubSpot disconnected")
 }
 
 // TriggerSync handles POST /api/v1/integrations/hubspot/sync.
 func (h *IntegrationHubSpotHandler) TriggerSync(w http.ResponseWriter, r *http.Request) {
-	orgID, ok := auth.GetOrgID(r.Context())
-	if !ok {
-		writeJSON(w, http.StatusUnauthorized, errorResponse("unauthorized"))
-		return
-	}
-
-	go h.orchestrator.RunFullSync(r.Context(), orgID)
-
-	writeJSON(w, http.StatusAccepted, map[string]string{"message": "HubSpot sync started"})
+	integrationTriggerSync(
+		w,
+		r,
+		func(ctx context.Context, orgID uuid.UUID) { h.orchestrator.RunFullSync(ctx, orgID) },
+		"HubSpot sync started",
+	)
 }
 
 // WebhookHubSpotHandler provides HubSpot webhook HTTP endpoints.
@@ -127,8 +76,7 @@ func NewWebhookHubSpotHandler(webhookSvc *service.HubSpotWebhookService) *Webhoo
 
 // HandleWebhook handles POST /api/v1/webhooks/hubspot.
 func (h *WebhookHubSpotHandler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
-	const maxBodySize = 65536
-	r.Body = http.MaxBytesReader(w, r.Body, maxBodySize)
+	r.Body = http.MaxBytesReader(w, r.Body, webhookMaxBodyBytes)
 
 	payload, err := readBody(r)
 	if err != nil {

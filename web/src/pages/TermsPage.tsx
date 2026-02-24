@@ -12,22 +12,26 @@ export default function TermsPage() {
       />
 
       <div className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Terms of Service</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Terms of Service
+        </h1>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           Last updated: February 24, 2026
         </p>
 
         <div className="mt-6 space-y-5 text-sm leading-7 text-gray-700 dark:text-gray-300">
           <p>
-            This is placeholder terms content for MVP use. Replace with legal-reviewed
-            terms before production launch.
+            This is placeholder terms content for MVP use. Replace with
+            legal-reviewed terms before production launch.
           </p>
           <p>
-            By using PulseScore, you agree to provide accurate account information,
-            comply with applicable laws, and avoid misuse of integrations.
+            By using PulseScore, you agree to provide accurate account
+            information, comply with applicable laws, and avoid misuse of
+            integrations.
           </p>
           <p>
-            Service availability targets and support terms may vary by subscription tier.
+            Service availability targets and support terms may vary by
+            subscription tier.
           </p>
         </div>
 

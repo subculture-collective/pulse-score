@@ -27,9 +27,13 @@ export default function HubSpotConnectStep({
       <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-medium text-gray-800">Status: {statusText}</p>
+            <p className="text-sm font-medium text-gray-800">
+              Status: {statusText}
+            </p>
             {accountId && (
-              <p className="mt-1 text-xs text-gray-500">Portal ID: {accountId}</p>
+              <p className="mt-1 text-xs text-gray-500">
+                Portal ID: {accountId}
+              </p>
             )}
           </div>
           <span

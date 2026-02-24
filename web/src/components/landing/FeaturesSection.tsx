@@ -41,15 +41,18 @@ const features = [
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="bg-gray-50 px-6 py-16 dark:bg-gray-900 sm:px-10 lg:px-14 lg:py-24">
+    <section
+      id="features"
+      className="bg-gray-50 px-6 py-16 dark:bg-gray-900 sm:px-10 lg:px-14 lg:py-24"
+    >
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100 sm:text-4xl">
             Built for lean CS teams that still need enterprise-grade signal.
           </h2>
           <p className="mt-3 text-gray-600 dark:text-gray-300">
-            Focus effort where it matters most, with proactive visibility instead
-            of reactive firefighting.
+            Focus effort where it matters most, with proactive visibility
+            instead of reactive firefighting.
           </p>
         </div>
 

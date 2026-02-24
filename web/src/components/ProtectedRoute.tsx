@@ -25,9 +25,8 @@ export default function ProtectedRoute({
   const { isAuthenticated, loading } = useAuth();
   const [onboardingLoading, setOnboardingLoading] = useState(true);
   const [onboardingCompleted, setOnboardingCompleted] = useState(true);
-  const [onboardingStep, setOnboardingStep] = useState<OnboardingStepId>(
-    "welcome",
-  );
+  const [onboardingStep, setOnboardingStep] =
+    useState<OnboardingStepId>("welcome");
 
   useEffect(() => {
     let cancelled = false;
@@ -82,13 +81,8 @@ export default function ProtectedRoute({
     return <Navigate to="/login" replace />;
   }
 
-  if (
-    !onboardingCompleted &&
-    !shouldBypassOnboarding(location.pathname)
-  ) {
-    return (
-      <Navigate to={`/onboarding?step=${onboardingStep}`} replace />
-    );
+  if (!onboardingCompleted && !shouldBypassOnboarding(location.pathname)) {
+    return <Navigate to={`/onboarding?step=${onboardingStep}`} replace />;
   }
 
   return <>{children}</>;

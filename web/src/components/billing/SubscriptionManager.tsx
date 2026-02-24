@@ -36,8 +36,11 @@ function usagePercent(used: number, limit: number): number {
   return Math.min(100, Math.round((used / limit) * 100));
 }
 
-export default function SubscriptionManager({ checkoutState }: SubscriptionManagerProps) {
-  const [subscription, setSubscription] = useState<BillingSubscriptionResponse | null>(null);
+export default function SubscriptionManager({
+  checkoutState,
+}: SubscriptionManagerProps) {
+  const [subscription, setSubscription] =
+    useState<BillingSubscriptionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState(false);
   const [openingPortal, setOpeningPortal] = useState(false);
@@ -92,7 +95,11 @@ export default function SubscriptionManager({ checkoutState }: SubscriptionManag
   }
 
   async function handleCancelAtPeriodEnd() {
-    if (!window.confirm("Cancel this subscription at the end of the current billing period?")) {
+    if (
+      !window.confirm(
+        "Cancel this subscription at the end of the current billing period?",
+      )
+    ) {
       return;
     }
 
@@ -129,11 +136,20 @@ export default function SubscriptionManager({ checkoutState }: SubscriptionManag
               {currentTier[0].toUpperCase() + currentTier.slice(1)} plan
             </h3>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Status: <span className="font-medium text-gray-700 dark:text-gray-200">{subscription.status}</span>
+              Status:{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {subscription.status}
+              </span>
               {" · "}
-              Cycle: <span className="font-medium text-gray-700 dark:text-gray-200">{cycle}</span>
+              Cycle:{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {cycle}
+              </span>
               {" · "}
-              Renewal: <span className="font-medium text-gray-700 dark:text-gray-200">{formatRenewalDate(subscription.renewal_date)}</span>
+              Renewal:{" "}
+              <span className="font-medium text-gray-700 dark:text-gray-200">
+                {formatRenewalDate(subscription.renewal_date)}
+              </span>
             </p>
             {subscription.cancel_at_period_end && (
               <p className="mt-2 text-xs font-medium text-amber-600 dark:text-amber-300">
@@ -165,7 +181,9 @@ export default function SubscriptionManager({ checkoutState }: SubscriptionManag
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Usage</h4>
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Usage
+        </h4>
         <div className="mt-4 space-y-4">
           {[
             {
@@ -198,7 +216,9 @@ export default function SubscriptionManager({ checkoutState }: SubscriptionManag
       </section>
 
       <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-800 dark:bg-gray-900">
-        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Change plan</h4>
+        <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+          Change plan
+        </h4>
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {recommendedPlans.map((plan) => {
             const isCurrent = plan.tier === currentTier;
@@ -213,11 +233,17 @@ export default function SubscriptionManager({ checkoutState }: SubscriptionManag
               >
                 <div className="flex items-start justify-between">
                   <div>
-                    <p className="font-semibold text-gray-900 dark:text-gray-100">{plan.name}</p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">{plan.description}</p>
+                    <p className="font-semibold text-gray-900 dark:text-gray-100">
+                      {plan.name}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      {plan.description}
+                    </p>
                   </div>
                   <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
-                    ${cycle === "monthly" ? plan.monthlyPrice : plan.annualPrice}/{cycle === "monthly" ? "mo" : "yr"}
+                    $
+                    {cycle === "monthly" ? plan.monthlyPrice : plan.annualPrice}
+                    /{cycle === "monthly" ? "mo" : "yr"}
                   </p>
                 </div>
                 <button
@@ -225,7 +251,11 @@ export default function SubscriptionManager({ checkoutState }: SubscriptionManag
                   onClick={() => startCheckout({ tier: plan.tier, cycle })}
                   className="mt-3 w-full rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {isCurrent ? "Current plan" : checkoutLoading ? "Redirecting..." : `Switch to ${plan.name}`}
+                  {isCurrent
+                    ? "Current plan"
+                    : checkoutLoading
+                      ? "Redirecting..."
+                      : `Switch to ${plan.name}`}
                 </button>
               </div>
             );

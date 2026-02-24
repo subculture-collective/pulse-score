@@ -35,8 +35,14 @@ function App() {
                 <Route path="/terms" element={<TermsPage />} />
 
                 {/* Backward-compatible auth aliases */}
-                <Route path="/auth/login" element={<Navigate to="/login" replace />} />
-                <Route path="/auth/register" element={<Navigate to="/register" replace />} />
+                <Route
+                  path="/auth/login"
+                  element={<Navigate to="/login" replace />}
+                />
+                <Route
+                  path="/auth/register"
+                  element={<Navigate to="/register" replace />}
+                />
 
                 {/* Protected app routes */}
                 <Route

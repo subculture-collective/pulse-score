@@ -12,23 +12,25 @@ export default function PrivacyPage() {
       />
 
       <div className="mx-auto max-w-3xl rounded-2xl border border-gray-200 bg-white p-8 shadow-sm dark:border-gray-800 dark:bg-gray-900">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Privacy Policy</h1>
+        <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Privacy Policy
+        </h1>
         <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
           Last updated: February 24, 2026
         </p>
 
         <div className="mt-6 space-y-5 text-sm leading-7 text-gray-700 dark:text-gray-300">
           <p>
-            This is placeholder policy content for MVP use. Replace with legal-reviewed
-            copy before production launch.
+            This is placeholder policy content for MVP use. Replace with
+            legal-reviewed copy before production launch.
           </p>
           <p>
-            PulseScore collects account profile information and integration data only
-            for product functionality, analytics, and support.
+            PulseScore collects account profile information and integration data
+            only for product functionality, analytics, and support.
           </p>
           <p id="cookies">
-            We use essential cookies for authentication and optional analytics cookies
-            for product improvement.
+            We use essential cookies for authentication and optional analytics
+            cookies for product improvement.
           </p>
         </div>
 

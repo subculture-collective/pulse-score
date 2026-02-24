@@ -56,13 +56,18 @@ export default function FooterSection() {
       <div className="mx-auto max-w-7xl">
         <div className="grid grid-cols-1 gap-10 lg:grid-cols-[1.1fr_1fr]">
           <div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">PulseScore</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              PulseScore
+            </h3>
             <p className="mt-3 max-w-md text-sm leading-6 text-gray-600 dark:text-gray-300">
-              Customer health scoring for B2B SaaS teams that need to move faster
-              than churn.
+              Customer health scoring for B2B SaaS teams that need to move
+              faster than churn.
             </p>
 
-            <form onSubmit={handleSubmit} className="mt-5 flex max-w-md flex-col gap-2 sm:flex-row">
+            <form
+              onSubmit={handleSubmit}
+              className="mt-5 flex max-w-md flex-col gap-2 sm:flex-row"
+            >
               <input
                 type="email"
                 placeholder="you@company.com"
@@ -101,11 +106,17 @@ export default function FooterSection() {
                     return (
                       <li key={link.label}>
                         {isExternal ? (
-                          <a href={link.href} className="hover:text-indigo-600 dark:hover:text-indigo-300">
+                          <a
+                            href={link.href}
+                            className="hover:text-indigo-600 dark:hover:text-indigo-300"
+                          >
                             {link.label}
                           </a>
                         ) : (
-                          <Link to={link.href} className="hover:text-indigo-600 dark:hover:text-indigo-300">
+                          <Link
+                            to={link.href}
+                            className="hover:text-indigo-600 dark:hover:text-indigo-300"
+                          >
                             {link.label}
                           </Link>
                         )}
@@ -121,13 +132,28 @@ export default function FooterSection() {
         <div className="mt-12 flex flex-col gap-4 border-t border-gray-200 pt-5 text-sm text-gray-500 dark:border-gray-800 dark:text-gray-400 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} PulseScore. All rights reserved.</p>
           <div className="flex items-center gap-4">
-            <a href="https://x.com" target="_blank" rel="noreferrer" className="hover:text-indigo-600 dark:hover:text-indigo-300">
+            <a
+              href="https://x.com"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-300"
+            >
               X
             </a>
-            <a href="https://github.com" target="_blank" rel="noreferrer" className="hover:text-indigo-600 dark:hover:text-indigo-300">
+            <a
+              href="https://github.com"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-300"
+            >
               GitHub
             </a>
-            <a href="https://www.linkedin.com" target="_blank" rel="noreferrer" className="hover:text-indigo-600 dark:hover:text-indigo-300">
+            <a
+              href="https://www.linkedin.com"
+              target="_blank"
+              rel="noreferrer"
+              className="hover:text-indigo-600 dark:hover:text-indigo-300"
+            >
               LinkedIn
             </a>
           </div>

@@ -16,10 +16,16 @@ interface OnboardingContextValue {
   status: OnboardingStatus | null;
   currentStepIndex: number;
   setCurrentStepIndex: (index: number) => void;
-  hydrateFromStatus: (status: OnboardingStatus, preferredStepIndex?: number) => void;
+  hydrateFromStatus: (
+    status: OnboardingStatus,
+    preferredStepIndex?: number,
+  ) => void;
   markCompleted: (stepId: OnboardingStepId) => void;
   markSkipped: (stepId: OnboardingStepId) => void;
-  setStepPayload: (stepId: OnboardingStepId, payload: Record<string, unknown>) => void;
+  setStepPayload: (
+    stepId: OnboardingStepId,
+    payload: Record<string, unknown>,
+  ) => void;
   setCompletedAt: (completedAt: string | null) => void;
 }
 
@@ -82,7 +88,10 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
     });
   }
 
-  function setStepPayload(stepId: OnboardingStepId, payload: Record<string, unknown>) {
+  function setStepPayload(
+    stepId: OnboardingStepId,
+    payload: Record<string, unknown>,
+  ) {
     setStatus((prev) => {
       if (!prev) return prev;
       return {
@@ -117,7 +126,9 @@ export function OnboardingProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>
+    <OnboardingContext.Provider value={value}>
+      {children}
+    </OnboardingContext.Provider>
   );
 }
 

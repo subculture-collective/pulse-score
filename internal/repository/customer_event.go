@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -44,7 +46,7 @@ func (r *CustomerEventRepository) Upsert(ctx context.Context, e *CustomerEvent) 
 		e.OrgID, e.CustomerID, e.EventType, e.Source, e.ExternalEventID, e.OccurredAt, e.Data,
 	).Scan(&e.ID, &e.CreatedAt)
 	// ON CONFLICT DO NOTHING returns no rows — that's fine
-	if err != nil && err.Error() == "no rows in result set" {
+	if errors.Is(err, pgx.ErrNoRows) {
 		return nil
 	}
 	return err

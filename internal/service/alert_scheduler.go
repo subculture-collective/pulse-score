@@ -25,26 +25,31 @@ type AlertScheduler struct {
 	frontendURL  string
 }
 
+// AlertSchedulerDeps holds constructor dependencies for AlertScheduler.
+type AlertSchedulerDeps struct {
+	Engine       *AlertEngine
+	EmailService EmailService
+	Templates    *EmailTemplateService
+	AlertHistory *repository.AlertHistoryRepository
+	AlertRules   *repository.AlertRuleRepository
+	UserRepo     *repository.UserRepository
+	NotifPrefSvc *NotificationPreferenceService
+}
+
 // NewAlertScheduler creates a new AlertScheduler.
 func NewAlertScheduler(
-	engine *AlertEngine,
-	emailService EmailService,
-	templates *EmailTemplateService,
-	alertHistory *repository.AlertHistoryRepository,
-	alertRules *repository.AlertRuleRepository,
-	userRepo *repository.UserRepository,
-	notifPrefSvc *NotificationPreferenceService,
+	deps AlertSchedulerDeps,
 	intervalMinutes int,
 	frontendURL string,
 ) *AlertScheduler {
 	return &AlertScheduler{
-		engine:       engine,
-		emailService: emailService,
-		templates:    templates,
-		alertHistory: alertHistory,
-		alertRules:   alertRules,
-		userRepo:     userRepo,
-		notifPrefSvc: notifPrefSvc,
+		engine:       deps.Engine,
+		emailService: deps.EmailService,
+		templates:    deps.Templates,
+		alertHistory: deps.AlertHistory,
+		alertRules:   deps.AlertRules,
+		userRepo:     deps.UserRepo,
+		notifPrefSvc: deps.NotifPrefSvc,
 		interval:     time.Duration(intervalMinutes) * time.Minute,
 		frontendURL:  frontendURL,
 	}

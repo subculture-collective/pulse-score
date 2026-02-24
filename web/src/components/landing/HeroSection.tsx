@@ -69,26 +69,28 @@ export default function HeroSection() {
                   {
                     name: "Northwind SaaS",
                     score: 89,
-                    tone:
-                      "from-emerald-400 to-emerald-600 dark:from-emerald-500 dark:to-emerald-400",
+                    tone: "from-emerald-400 to-emerald-600 dark:from-emerald-500 dark:to-emerald-400",
                   },
                   {
                     name: "Orbit Analytics",
                     score: 64,
-                    tone:
-                      "from-amber-400 to-amber-600 dark:from-amber-500 dark:to-amber-400",
+                    tone: "from-amber-400 to-amber-600 dark:from-amber-500 dark:to-amber-400",
                   },
                   {
                     name: "Acme Ops",
                     score: 37,
-                    tone:
-                      "from-rose-400 to-rose-600 dark:from-rose-500 dark:to-rose-400",
+                    tone: "from-rose-400 to-rose-600 dark:from-rose-500 dark:to-rose-400",
                   },
                 ].map((customer) => (
-                  <div key={customer.name} className="rounded-lg bg-white p-3 dark:bg-gray-900">
+                  <div
+                    key={customer.name}
+                    className="rounded-lg bg-white p-3 dark:bg-gray-900"
+                  >
                     <div className="mb-2 flex items-center justify-between text-xs text-gray-500 dark:text-gray-400">
                       <span>{customer.name}</span>
-                      <span className="font-semibold">{customer.score}/100</span>
+                      <span className="font-semibold">
+                        {customer.score}/100
+                      </span>
                     </div>
                     <div className="h-2 rounded-full bg-gray-200 dark:bg-gray-800">
                       <div
