@@ -51,7 +51,7 @@ export default function RegisterPage() {
         org_name: orgName,
       });
       setSession(data);
-      navigate("/");
+      navigate("/dashboard");
     } catch (err) {
       if (err instanceof AxiosError && err.response?.data?.error) {
         setError(err.response.data.error);
@@ -208,7 +208,7 @@ export default function RegisterPage() {
         <p className="mt-4 text-center text-sm text-gray-500">
           Already have an account?{" "}
           <Link
-            to="/auth/login"
+            to="/login"
             className="text-indigo-600 hover:text-indigo-500"
           >
             Sign in

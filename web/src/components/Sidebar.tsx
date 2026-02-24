@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 
 const navItems = [
-  { to: "/", label: "Dashboard", icon: LayoutDashboard },
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/customers", label: "Customers", icon: Users },
   { to: "/settings/integrations", label: "Integrations", icon: Plug },
   { to: "/settings", label: "Settings", icon: Settings, end: true },
@@ -34,7 +34,7 @@ export default function Sidebar({
 
   function isActive(to: string, end?: boolean) {
     if (end) return location.pathname === to;
-    if (to === "/") return location.pathname === "/";
+    if (to === "/dashboard") return location.pathname === "/dashboard";
     return location.pathname.startsWith(to);
   }
 

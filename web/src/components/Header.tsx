@@ -24,7 +24,7 @@ export default function Header() {
 
   function handleLogout() {
     logout();
-    navigate("/auth/login");
+    navigate("/login");
   }
 
   function cycleTheme() {
