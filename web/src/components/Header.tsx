@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { LogOut, User, Sun, Moon, Monitor } from "lucide-react";
 import { useTheme } from "@/contexts/ThemeContext";
+import NotificationBell from "@/components/NotificationBell";
 
 export default function Header() {
   const { user, organization, logout } = useAuth();
@@ -52,6 +53,8 @@ export default function Header() {
       </div>
 
       <div className="flex items-center gap-2">
+        <NotificationBell />
+
         <button
           onClick={cycleTheme}
           className="rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"

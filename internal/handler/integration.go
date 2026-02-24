@@ -6,15 +6,16 @@ import (
 	"github.com/go-chi/chi/v5"
 
 	"github.com/onnwee/pulse-score/internal/auth"
+	"github.com/onnwee/pulse-score/internal/service"
 )
 
 // IntegrationHandler provides integration management HTTP endpoints.
 type IntegrationHandler struct {
-	integrationService integrationServicer
+	integrationService *service.IntegrationService
 }
 
 // NewIntegrationHandler creates a new IntegrationHandler.
-func NewIntegrationHandler(integrationService integrationServicer) *IntegrationHandler {
+func NewIntegrationHandler(integrationService *service.IntegrationService) *IntegrationHandler {
 	return &IntegrationHandler{integrationService: integrationService}
 }
 

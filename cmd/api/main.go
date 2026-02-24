@@ -14,6 +14,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httprate"
+	"github.com/google/uuid"
 
 	"github.com/onnwee/pulse-score/internal/auth"
 	"github.com/onnwee/pulse-score/internal/config"
@@ -88,17 +89,11 @@ func main() {
 	r.Get("/healthz", health.Liveness)
 	r.Get("/readyz", health.Readiness)
 
-	// API documentation (no auth)
-	docsHandler := handler.NewDocsHandler("docs/openapi.yaml")
-	r.Get("/api/docs/openapi.yaml", docsHandler.ServeSpec)
-	r.Get("/api/docs", docsHandler.ServeUI)
-	r.Get("/api/docs/*", docsHandler.ServeUI)
-
 	// API v1 route group
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
-			_, _ = w.Write([]byte(`{"message":"pong"}`))
+			w.Write([]byte(`{"message":"pong"}`))
 		})
 
 		// Auth routes (public)
@@ -186,75 +181,53 @@ func main() {
 
 			scoringConfigSvc := scoring.NewConfigService(scoringConfigRepo, scoreScheduler)
 
-			// HubSpot repositories
-			hubspotContactRepo := repository.NewHubSpotContactRepository(pool.P)
-			hubspotDealRepo := repository.NewHubSpotDealRepository(pool.P)
-			hubspotCompanyRepo := repository.NewHubSpotCompanyRepository(pool.P)
+			// Alert engine + scheduler
+			alertRuleRepo := repository.NewAlertRuleRepository(pool.P)
+			alertHistoryRepo := repository.NewAlertHistoryRepository(pool.P)
+			emailTemplateSvc, err := service.NewEmailTemplateService()
+			if err != nil {
+				slog.Error("failed to initialize email templates", "error", err)
+				os.Exit(1)
+			}
 
-			// HubSpot services
-			hubspotOAuthSvc := service.NewHubSpotOAuthService(service.HubSpotOAuthConfig{
-				ClientID:         cfg.HubSpot.ClientID,
-				ClientSecret:     cfg.HubSpot.ClientSecret,
-				OAuthRedirectURL: cfg.HubSpot.OAuthRedirectURL,
-				EncryptionKey:    cfg.HubSpot.EncryptionKey,
-			}, connRepo)
-
-			hubspotClient := service.NewHubSpotClient()
-
-			hubspotSyncSvc := service.NewHubSpotSyncService(
-				hubspotOAuthSvc, hubspotClient,
-				hubspotContactRepo, hubspotDealRepo, hubspotCompanyRepo,
-				customerRepo, eventRepo,
+			alertEngine := service.NewAlertEngine(
+				alertRuleRepo, alertHistoryRepo, healthScoreRepo,
+				customerRepo, eventRepo, cfg.Alert.DefaultCooldownHr,
 			)
 
-			customerMergeSvc := service.NewCustomerMergeService(customerRepo, hubspotContactRepo)
+			notifPrefRepo := repository.NewNotificationPreferenceRepository(pool.P)
+			notifPrefSvc := service.NewNotificationPreferenceService(notifPrefRepo)
 
-			hubspotWebhookSvc := service.NewHubSpotWebhookService(
-				cfg.HubSpot.ClientSecret,
-				hubspotSyncSvc, customerMergeSvc,
-				connRepo, hubspotContactRepo, hubspotDealRepo, hubspotCompanyRepo, eventRepo,
+			alertScheduler := service.NewAlertScheduler(
+				alertEngine, emailSvc, emailTemplateSvc,
+				alertHistoryRepo, alertRuleRepo, userRepo,
+				notifPrefSvc,
+				cfg.Alert.EvalIntervalMin, cfg.SendGrid.FrontendURL,
 			)
 
-			hubspotOrchestrator := service.NewHubSpotSyncOrchestratorService(
-				connRepo, hubspotSyncSvc, customerMergeSvc,
-			)
+			// Wire in-app notifications into the alert scheduler
+			notifRepo := repository.NewNotificationRepository(pool.P)
+			notifSvc := service.NewNotificationService(notifRepo, userRepo, notifPrefSvc)
+			alertScheduler.SetNotificationService(notifSvc)
 
-			// Intercom repositories
-			intercomContactRepo := repository.NewIntercomContactRepository(pool.P)
-			intercomConversationRepo := repository.NewIntercomConversationRepository(pool.P)
-
-			// Intercom services
-			intercomOAuthSvc := service.NewIntercomOAuthService(service.IntercomOAuthConfig{
-				ClientID:         cfg.Intercom.ClientID,
-				ClientSecret:     cfg.Intercom.ClientSecret,
-				OAuthRedirectURL: cfg.Intercom.OAuthRedirectURL,
-				EncryptionKey:    cfg.Intercom.EncryptionKey,
-			}, connRepo)
-
-			intercomClient := service.NewIntercomClient()
-
-			intercomSyncSvc := service.NewIntercomSyncService(
-				intercomOAuthSvc, intercomClient,
-				intercomContactRepo, intercomConversationRepo,
-				customerRepo, eventRepo,
-			)
-
-			intercomWebhookSvc := service.NewIntercomWebhookService(
-				cfg.Intercom.WebhookSecret,
-				intercomSyncSvc, customerMergeSvc,
-				connRepo, intercomContactRepo, intercomConversationRepo, eventRepo,
-			)
-
-			intercomOrchestrator := service.NewIntercomSyncOrchestratorService(
-				connRepo, intercomSyncSvc, customerMergeSvc,
-			)
+			// Hook real-time alert evaluation into score recalculation
+			scoreScheduler.SetAlertCallback(func(ctx context.Context, customerID, orgID uuid.UUID) {
+				matches, err := alertEngine.EvaluateForCustomer(ctx, customerID, orgID)
+				if err != nil {
+					slog.Error("real-time alert eval error", "customer_id", customerID, "error", err)
+					return
+				}
+				for _, match := range matches {
+					alertScheduler.ProcessMatch(ctx, match)
+				}
+			})
 
 			// Start background services
 			bgCtx, bgCancel := context.WithCancel(context.Background())
 			defer bgCancel()
 
 			if cfg.Stripe.SyncIntervalMin > 0 {
-				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, hubspotOrchestrator, intercomOrchestrator, cfg.Stripe.SyncIntervalMin)
+				syncScheduler := service.NewSyncSchedulerService(connRepo, syncOrchestrator, cfg.Stripe.SyncIntervalMin)
 				go syncScheduler.Start(bgCtx)
 			}
 
@@ -262,8 +235,12 @@ func main() {
 				go scoreScheduler.Start(bgCtx)
 			}
 
-			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, hubspotOAuthSvc, hubspotClient, intercomOAuthSvc, intercomClient, 60)
+			connMonitor := service.NewConnectionMonitorService(connRepo, stripeOAuthSvc, 60)
 			go connMonitor.Start(bgCtx)
+
+			if cfg.Alert.EvalIntervalMin > 0 {
+				go alertScheduler.Start(bgCtx)
+			}
 
 			r.Post("/auth/register", authHandler.Register)
 			r.Post("/auth/login", authHandler.Login)
@@ -278,13 +255,9 @@ func main() {
 			webhookHandler := handler.NewWebhookStripeHandler(stripeWebhookSvc)
 			r.Post("/webhooks/stripe", webhookHandler.HandleWebhook)
 
-			// HubSpot webhook (public — verified by signature)
-			hubspotWebhookHandler := handler.NewWebhookHubSpotHandler(hubspotWebhookSvc)
-			r.Post("/webhooks/hubspot", hubspotWebhookHandler.HandleWebhook)
-
-			// Intercom webhook (public — verified by signature)
-			intercomWebhookHandler := handler.NewWebhookIntercomHandler(intercomWebhookSvc)
-			r.Post("/webhooks/intercom", intercomWebhookHandler.HandleWebhook)
+			// SendGrid webhook (public — for delivery tracking)
+			sendgridWebhookHandler := handler.NewWebhookSendGridHandler(alertHistoryRepo)
+			r.Post("/webhooks/sendgrid", sendgridWebhookHandler.HandleWebhook)
 
 			// Protected routes (JWT required)
 			r.Group(func(r chi.Router) {
@@ -348,10 +321,22 @@ func main() {
 					r.Delete("/{id}", invitationHandler.Revoke)
 				})
 
+				// Notification preferences routes
+				notifPrefHandler := handler.NewNotificationPreferenceHandler(notifPrefSvc)
+				r.Get("/notifications/preferences", notifPrefHandler.Get)
+				r.Patch("/notifications/preferences", notifPrefHandler.Update)
+
+				// Notification routes
+				notifHandler := handler.NewNotificationHandler(notifSvc)
+				r.Get("/notifications", notifHandler.List)
+				r.Get("/notifications/unread-count", notifHandler.CountUnread)
+				r.Post("/notifications/{id}/read", notifHandler.MarkRead)
+				r.Post("/notifications/read-all", notifHandler.MarkAllRead)
+
 				// Alert rule routes (admin+ required)
-				alertRuleRepo := repository.NewAlertRuleRepository(pool.P)
 				alertRuleSvc := service.NewAlertRuleService(alertRuleRepo)
 				alertRuleHandler := handler.NewAlertRuleHandler(alertRuleSvc)
+				alertHistoryHandler := handler.NewAlertHistoryHandler(alertHistoryRepo)
 				r.Route("/alerts/rules", func(r chi.Router) {
 					r.Use(middleware.RequireRole("admin"))
 					r.Get("/", alertRuleHandler.List)
@@ -359,7 +344,12 @@ func main() {
 					r.Get("/{id}", alertRuleHandler.Get)
 					r.Patch("/{id}", alertRuleHandler.Update)
 					r.Delete("/{id}", alertRuleHandler.Delete)
+					r.Get("/{id}/history", alertHistoryHandler.ListByRule)
 				})
+
+				// Alert history routes
+				r.Get("/alerts/history", alertHistoryHandler.List)
+				r.Get("/alerts/stats", alertHistoryHandler.Stats)
 
 				// Stripe integration routes (admin+ required)
 				stripeHandler := handler.NewIntegrationStripeHandler(stripeOAuthSvc, syncOrchestrator)
@@ -370,28 +360,6 @@ func main() {
 					r.Get("/status", stripeHandler.Status)
 					r.Delete("/", stripeHandler.Disconnect)
 					r.Post("/sync", stripeHandler.TriggerSync)
-				})
-
-				// HubSpot integration routes (admin+ required)
-				hubspotHandler := handler.NewIntegrationHubSpotHandler(hubspotOAuthSvc, hubspotOrchestrator)
-				r.Route("/integrations/hubspot", func(r chi.Router) {
-					r.Use(middleware.RequireRole("admin"))
-					r.Get("/connect", hubspotHandler.Connect)
-					r.Get("/callback", hubspotHandler.Callback)
-					r.Get("/status", hubspotHandler.Status)
-					r.Delete("/", hubspotHandler.Disconnect)
-					r.Post("/sync", hubspotHandler.TriggerSync)
-				})
-
-				// Intercom integration routes (admin+ required)
-				intercomHandler := handler.NewIntegrationIntercomHandler(intercomOAuthSvc, intercomOrchestrator)
-				r.Route("/integrations/intercom", func(r chi.Router) {
-					r.Use(middleware.RequireRole("admin"))
-					r.Get("/connect", intercomHandler.Connect)
-					r.Get("/callback", intercomHandler.Callback)
-					r.Get("/status", intercomHandler.Status)
-					r.Delete("/", intercomHandler.Disconnect)
-					r.Post("/sync", intercomHandler.TriggerSync)
 				})
 
 				// Health scoring routes

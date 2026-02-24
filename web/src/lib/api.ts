@@ -64,4 +64,143 @@ export const authApi = {
     }),
 };
 
+// Alert types and API
+export interface AlertRule {
+  id: string;
+  org_id: string;
+  name: string;
+  description: string;
+  trigger_type: string;
+  conditions: Record<string, unknown>;
+  channel: string;
+  recipients: string[];
+  is_active: boolean;
+  created_by?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface AlertHistory {
+  id: string;
+  org_id: string;
+  alert_rule_id: string;
+  customer_id?: string;
+  trigger_data: Record<string, unknown>;
+  channel: string;
+  status: string;
+  sent_at?: string;
+  error_message?: string;
+  sendgrid_message_id?: string;
+  delivered_at?: string;
+  opened_at?: string;
+  clicked_at?: string;
+  bounced_at?: string;
+  created_at: string;
+}
+
+export interface CreateAlertRulePayload {
+  name: string;
+  description: string;
+  trigger_type: string;
+  conditions: Record<string, unknown>;
+  channel: string;
+  recipients: string[];
+}
+
+export interface UpdateAlertRulePayload {
+  name?: string;
+  description?: string;
+  trigger_type?: string;
+  conditions?: Record<string, unknown>;
+  channel?: string;
+  recipients?: string[];
+  is_active?: boolean;
+}
+
+export const alertsApi = {
+  listRules: () => api.get<{ rules: AlertRule[] }>("/alerts/rules"),
+
+  getRule: (id: string) => api.get<{ rule: AlertRule }>(`/alerts/rules/${encodeURIComponent(id)}`),
+
+  createRule: (data: CreateAlertRulePayload) =>
+    api.post<{ rule: AlertRule }>("/alerts/rules", data),
+
+  updateRule: (id: string, data: UpdateAlertRulePayload) =>
+    api.patch<{ rule: AlertRule }>(`/alerts/rules/${encodeURIComponent(id)}`, data),
+
+  deleteRule: (id: string) =>
+    api.delete(`/alerts/rules/${encodeURIComponent(id)}`),
+
+  listHistory: (params?: { status?: string; limit?: number; offset?: number }) =>
+    api.get<{ history: AlertHistory[]; total: number; limit: number; offset: number }>(
+      "/alerts/history",
+      { params },
+    ),
+
+  getStats: () => api.get<Record<string, number>>("/alerts/stats"),
+
+  listRuleHistory: (ruleId: string, params?: { limit?: number; offset?: number }) =>
+    api.get<{ history: AlertHistory[] }>(
+      `/alerts/rules/${encodeURIComponent(ruleId)}/history`,
+      { params },
+    ),
+};
+
+export interface NotificationPreference {
+  id: string;
+  user_id: string;
+  org_id: string;
+  email_enabled: boolean;
+  in_app_enabled: boolean;
+  digest_enabled: boolean;
+  digest_frequency: string;
+  muted_rule_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UpdateNotificationPreferencePayload {
+  email_enabled?: boolean;
+  in_app_enabled?: boolean;
+  digest_enabled?: boolean;
+  digest_frequency?: string;
+  muted_rule_ids?: string[];
+}
+
+export const notificationPreferencesApi = {
+  get: () => api.get<NotificationPreference>("/notifications/preferences"),
+
+  update: (data: UpdateNotificationPreferencePayload) =>
+    api.patch<NotificationPreference>("/notifications/preferences", data),
+};
+
+export interface AppNotification {
+  id: string;
+  user_id: string;
+  org_id: string;
+  type: string;
+  title: string;
+  message: string;
+  data: Record<string, unknown>;
+  read_at: string | null;
+  created_at: string;
+}
+
+export const notificationsApi = {
+  list: (params?: { limit?: number; offset?: number }) =>
+    api.get<{ notifications: AppNotification[]; total: number; limit: number; offset: number }>(
+      "/notifications",
+      { params },
+    ),
+
+  unreadCount: () =>
+    api.get<{ count: number }>("/notifications/unread-count"),
+
+  markRead: (id: string) =>
+    api.post(`/notifications/${encodeURIComponent(id)}/read`),
+
+  markAllRead: () =>
+    api.post("/notifications/read-all"),
+};
+
 export default api;

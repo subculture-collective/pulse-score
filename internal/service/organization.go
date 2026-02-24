@@ -134,7 +134,7 @@ func (s *OrganizationService) Create(ctx context.Context, userID uuid.UUID, req 
 	if err != nil {
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
-	defer func() { _ = tx.Rollback(ctx) }()
+	defer tx.Rollback(ctx)
 
 	if err := s.orgs.Create(ctx, tx, org); err != nil {
 		return nil, fmt.Errorf("create org: %w", err)
