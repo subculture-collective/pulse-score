@@ -13,11 +13,11 @@ import (
 
 // AlertRuleHandler provides alert rule HTTP endpoints.
 type AlertRuleHandler struct {
-	alertService *service.AlertRuleService
+	alertService alertRuleServicer
 }
 
 // NewAlertRuleHandler creates a new AlertRuleHandler.
-func NewAlertRuleHandler(alertService *service.AlertRuleService) *AlertRuleHandler {
+func NewAlertRuleHandler(alertService alertRuleServicer) *AlertRuleHandler {
 	return &AlertRuleHandler{alertService: alertService}
 }
 

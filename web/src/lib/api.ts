@@ -203,4 +203,63 @@ export const notificationsApi = {
     api.post("/notifications/read-all"),
 };
 
+export type OnboardingStepId =
+  | "welcome"
+  | "stripe"
+  | "hubspot"
+  | "intercom"
+  | "preview";
+
+export interface OnboardingStatus {
+  current_step: OnboardingStepId;
+  completed_steps: OnboardingStepId[];
+  skipped_steps: OnboardingStepId[];
+  step_payloads: Record<string, unknown>;
+  completed_at: string | null;
+  updated_at: string;
+}
+
+export interface UpdateOnboardingStatusPayload {
+  step_id?: OnboardingStepId;
+  action:
+    | "step_started"
+    | "step_completed"
+    | "step_skipped"
+    | "onboarding_completed"
+    | "onboarding_abandoned";
+  current_step?: OnboardingStepId;
+  payload?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  duration_ms?: number;
+}
+
+export interface OnboardingStepMetric {
+  step_id: OnboardingStepId;
+  started_count: number;
+  completed_count: number;
+  skipped_count: number;
+  completion_rate: number;
+  skip_rate: number;
+  average_duration_ms: number;
+}
+
+export interface OnboardingAnalytics {
+  overall_completion_rate: number;
+  average_step_duration_ms: number;
+  step_metrics: OnboardingStepMetric[];
+}
+
+export const onboardingApi = {
+  getStatus: () => api.get<OnboardingStatus>("/onboarding/status"),
+
+  updateStatus: (data: UpdateOnboardingStatusPayload) =>
+    api.patch<OnboardingStatus>("/onboarding/status", data),
+
+  complete: () => api.post<OnboardingStatus>("/onboarding/complete"),
+
+  reset: () => api.post<OnboardingStatus>("/onboarding/reset"),
+
+  analytics: () => api.get<OnboardingAnalytics>("/onboarding/analytics"),
+};
+
 export default api;

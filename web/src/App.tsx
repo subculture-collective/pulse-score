@@ -11,6 +11,7 @@ import DashboardPage from "@/pages/DashboardPage";
 import CustomersPage from "@/pages/CustomersPage";
 import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
+import OnboardingPage from "@/pages/OnboardingPage";
 import NotFoundPage from "@/pages/NotFoundPage";
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
                   }
                 >
                   <Route index element={<DashboardPage />} />
+                  <Route path="onboarding" element={<OnboardingPage />} />
                   <Route path="customers" element={<CustomersPage />} />
                   <Route
                     path="customers/:id"

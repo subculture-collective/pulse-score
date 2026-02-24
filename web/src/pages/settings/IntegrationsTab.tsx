@@ -3,6 +3,7 @@ import api from "@/lib/api";
 import { useToast } from "@/contexts/ToastContext";
 import StripeConnectionCard from "@/components/integrations/StripeConnectionCard";
 import HubSpotConnectionCard from "@/components/integrations/HubSpotConnectionCard";
+import IntercomConnectionCard from "@/components/integrations/IntercomConnectionCard";
 import IntegrationCard from "@/components/IntegrationCard";
 import { Loader2 } from "lucide-react";
 
@@ -46,7 +47,10 @@ export default function IntegrationsTab() {
 
   // Filter out Stripe and HubSpot from generic list since they have dedicated cards
   const otherIntegrations = integrations.filter(
-    (i) => i.provider !== "stripe" && i.provider !== "hubspot",
+    (i) =>
+      i.provider !== "stripe" &&
+      i.provider !== "hubspot" &&
+      i.provider !== "intercom",
   );
 
   return (
@@ -63,6 +67,13 @@ export default function IntegrationsTab() {
           HubSpot
         </h3>
         <HubSpotConnectionCard />
+      </div>
+
+      <div>
+        <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+          Intercom
+        </h3>
+        <IntercomConnectionCard />
       </div>
 
       {otherIntegrations.length > 0 && (

@@ -10,16 +10,15 @@ import (
 
 	"github.com/onnwee/pulse-score/internal/auth"
 	"github.com/onnwee/pulse-score/internal/repository"
-	"github.com/onnwee/pulse-score/internal/service"
 )
 
 // CustomerHandler provides customer HTTP endpoints.
 type CustomerHandler struct {
-	customerService *service.CustomerService
+	customerService customerServicer
 }
 
 // NewCustomerHandler creates a new CustomerHandler.
-func NewCustomerHandler(cs *service.CustomerService) *CustomerHandler {
+func NewCustomerHandler(cs customerServicer) *CustomerHandler {
 	return &CustomerHandler{customerService: cs}
 }
 

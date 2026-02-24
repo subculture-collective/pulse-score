@@ -85,6 +85,32 @@ func (r *CustomerRepository) GetByExternalID(ctx context.Context, orgID uuid.UUI
 	return c, nil
 }
 
+// GetByEmail retrieves a customer by email within an organization.
+func (r *CustomerRepository) GetByEmail(ctx context.Context, orgID uuid.UUID, email string) (*Customer, error) {
+	query := `
+		SELECT id, org_id, external_id, source, COALESCE(email, ''), COALESCE(name, ''),
+			COALESCE(company_name, ''), mrr_cents, currency,
+			first_seen_at, last_seen_at, COALESCE(metadata, '{}'), created_at, updated_at, deleted_at
+		FROM customers
+		WHERE org_id = $1 AND email = $2 AND deleted_at IS NULL
+		ORDER BY updated_at DESC
+		LIMIT 1`
+
+	c := &Customer{}
+	err := r.pool.QueryRow(ctx, query, orgID, email).Scan(
+		&c.ID, &c.OrgID, &c.ExternalID, &c.Source, &c.Email, &c.Name,
+		&c.CompanyName, &c.MRRCents, &c.Currency,
+		&c.FirstSeenAt, &c.LastSeenAt, &c.Metadata, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get customer by email: %w", err)
+	}
+	return c, nil
+}
+
 // GetByID retrieves a customer by ID.
 func (r *CustomerRepository) GetByID(ctx context.Context, id uuid.UUID) (*Customer, error) {
 	query := `
@@ -129,6 +155,24 @@ func (r *CustomerRepository) UpdateMRR(ctx context.Context, customerID uuid.UUID
 	return nil
 }
 
+// UpdateCompanyAndMetadata updates a customer's company name and metadata.
+// Metadata is shallow-merged into existing JSONB metadata.
+func (r *CustomerRepository) UpdateCompanyAndMetadata(ctx context.Context, customerID uuid.UUID, companyName string, metadata map[string]any) error {
+	query := `
+		UPDATE customers
+		SET
+			company_name = CASE WHEN $2 = '' THEN company_name ELSE $2 END,
+			metadata = COALESCE(metadata, '{}'::jsonb) || COALESCE($3::jsonb, '{}'::jsonb),
+			updated_at = NOW()
+		WHERE id = $1 AND deleted_at IS NULL`
+
+	_, err := r.pool.Exec(ctx, query, customerID, companyName, metadata)
+	if err != nil {
+		return fmt.Errorf("update customer company and metadata: %w", err)
+	}
+	return nil
+}
+
 // ListByOrg retrieves all non-deleted customers for an org.
 func (r *CustomerRepository) ListByOrg(ctx context.Context, orgID uuid.UUID) ([]*Customer, error) {
 	query := `
@@ -158,6 +202,60 @@ func (r *CustomerRepository) ListByOrg(ctx context.Context, orgID uuid.UUID) ([]
 		customers = append(customers, c)
 	}
 	return customers, rows.Err()
+}
+
+// FindDuplicatesByEmail returns groups of active customers that share the same email within an org.
+func (r *CustomerRepository) FindDuplicatesByEmail(ctx context.Context, orgID uuid.UUID) ([][]*Customer, error) {
+	query := `
+		WITH duplicate_emails AS (
+			SELECT email
+			FROM customers
+			WHERE org_id = $1 AND deleted_at IS NULL AND COALESCE(email, '') <> ''
+			GROUP BY email
+			HAVING COUNT(*) > 1
+		)
+		SELECT c.id, c.org_id, c.external_id, c.source, COALESCE(c.email, ''), COALESCE(c.name, ''),
+			COALESCE(c.company_name, ''), c.mrr_cents, c.currency,
+			c.first_seen_at, c.last_seen_at, COALESCE(c.metadata, '{}'), c.created_at, c.updated_at, c.deleted_at
+		FROM customers c
+		JOIN duplicate_emails d ON d.email = c.email
+		WHERE c.org_id = $1 AND c.deleted_at IS NULL
+		ORDER BY c.email, c.first_seen_at NULLS LAST, c.created_at`
+
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("find duplicate customers by email: %w", err)
+	}
+	defer rows.Close()
+
+	groupsByEmail := map[string][]*Customer{}
+	emailOrder := make([]string, 0)
+
+	for rows.Next() {
+		c := &Customer{}
+		if err := rows.Scan(
+			&c.ID, &c.OrgID, &c.ExternalID, &c.Source, &c.Email, &c.Name,
+			&c.CompanyName, &c.MRRCents, &c.Currency,
+			&c.FirstSeenAt, &c.LastSeenAt, &c.Metadata, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan duplicate customer: %w", err)
+		}
+
+		if _, exists := groupsByEmail[c.Email]; !exists {
+			emailOrder = append(emailOrder, c.Email)
+		}
+		groupsByEmail[c.Email] = append(groupsByEmail[c.Email], c)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	groups := make([][]*Customer, 0, len(emailOrder))
+	for _, email := range emailOrder {
+		groups = append(groups, groupsByEmail[email])
+	}
+
+	return groups, nil
 }
 
 // CountByOrg returns the number of active customers for an org.
