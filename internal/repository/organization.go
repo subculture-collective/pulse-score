@@ -99,3 +99,139 @@ func (r *OrganizationRepository) IsMember(ctx context.Context, userID, orgID uui
 	}
 	return exists, nil
 }
+
+// OrganizationWithStats holds an org with member and customer counts.
+type OrganizationWithStats struct {
+	Organization
+	MemberCount   int `json:"member_count"`
+	CustomerCount int `json:"customer_count"`
+}
+
+// GetWithStats retrieves an org with member and customer counts.
+func (r *OrganizationRepository) GetWithStats(ctx context.Context, orgID uuid.UUID) (*OrganizationWithStats, error) {
+	query := `
+		SELECT o.id, o.name, o.slug, o.plan, COALESCE(o.stripe_customer_id, ''),
+			o.created_at, o.updated_at,
+			(SELECT COUNT(*) FROM user_organizations WHERE org_id = o.id) AS member_count,
+			(SELECT COUNT(*) FROM customers WHERE org_id = o.id AND deleted_at IS NULL) AS customer_count
+		FROM organizations o
+		WHERE o.id = $1 AND o.deleted_at IS NULL`
+
+	ows := &OrganizationWithStats{}
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(
+		&ows.ID, &ows.Name, &ows.Slug, &ows.Plan, &ows.StripeCustomerID,
+		&ows.CreatedAt, &ows.UpdatedAt,
+		&ows.MemberCount, &ows.CustomerCount,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get org with stats: %w", err)
+	}
+	return ows, nil
+}
+
+// Update updates an org's name and slug.
+func (r *OrganizationRepository) Update(ctx context.Context, orgID uuid.UUID, name, slug string) error {
+	query := `UPDATE organizations SET name = $2, slug = $3 WHERE id = $1 AND deleted_at IS NULL`
+	_, err := r.pool.Exec(ctx, query, orgID, name, slug)
+	if err != nil {
+		return fmt.Errorf("update org: %w", err)
+	}
+	return nil
+}
+
+// CountMembers returns the number of members in an org.
+func (r *OrganizationRepository) CountMembers(ctx context.Context, orgID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM user_organizations WHERE org_id = $1`
+	var count int
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count members: %w", err)
+	}
+	return count, nil
+}
+
+// OrgMember holds a member of an org with user details.
+type OrgMember struct {
+	UserID    uuid.UUID  `json:"user_id"`
+	Email     string     `json:"email"`
+	FirstName string     `json:"first_name"`
+	LastName  string     `json:"last_name"`
+	AvatarURL string     `json:"avatar_url"`
+	Role      string     `json:"role"`
+	JoinedAt  time.Time  `json:"joined_at"`
+}
+
+// ListMembers returns all members of an org with user details.
+func (r *OrganizationRepository) ListMembers(ctx context.Context, orgID uuid.UUID) ([]OrgMember, error) {
+	query := `
+		SELECT u.id, u.email, u.first_name, u.last_name, COALESCE(u.avatar_url, ''),
+			uo.role, uo.created_at
+		FROM user_organizations uo
+		JOIN users u ON u.id = uo.user_id
+		WHERE uo.org_id = $1 AND u.deleted_at IS NULL
+		ORDER BY uo.created_at`
+
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("list members: %w", err)
+	}
+	defer rows.Close()
+
+	var members []OrgMember
+	for rows.Next() {
+		var m OrgMember
+		if err := rows.Scan(&m.UserID, &m.Email, &m.FirstName, &m.LastName, &m.AvatarURL, &m.Role, &m.JoinedAt); err != nil {
+			return nil, fmt.Errorf("scan member: %w", err)
+		}
+		members = append(members, m)
+	}
+	return members, rows.Err()
+}
+
+// GetMemberRole returns the role of a user in an org.
+func (r *OrganizationRepository) GetMemberRole(ctx context.Context, orgID, userID uuid.UUID) (string, error) {
+	query := `SELECT role FROM user_organizations WHERE org_id = $1 AND user_id = $2`
+	var role string
+	err := r.pool.QueryRow(ctx, query, orgID, userID).Scan(&role)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("get member role: %w", err)
+	}
+	return role, nil
+}
+
+// UpdateMemberRole updates a user's role in an org.
+func (r *OrganizationRepository) UpdateMemberRole(ctx context.Context, orgID, userID uuid.UUID, role string) error {
+	query := `UPDATE user_organizations SET role = $3 WHERE org_id = $1 AND user_id = $2`
+	_, err := r.pool.Exec(ctx, query, orgID, userID, role)
+	if err != nil {
+		return fmt.Errorf("update member role: %w", err)
+	}
+	return nil
+}
+
+// RemoveMember removes a user from an org.
+func (r *OrganizationRepository) RemoveMember(ctx context.Context, orgID, userID uuid.UUID) error {
+	query := `DELETE FROM user_organizations WHERE org_id = $1 AND user_id = $2`
+	_, err := r.pool.Exec(ctx, query, orgID, userID)
+	if err != nil {
+		return fmt.Errorf("remove member: %w", err)
+	}
+	return nil
+}
+
+// CountOwners returns the number of users with the "owner" role in an org.
+func (r *OrganizationRepository) CountOwners(ctx context.Context, orgID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM user_organizations WHERE org_id = $1 AND role = 'owner'`
+	var count int
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count owners: %w", err)
+	}
+	return count, nil
+}

@@ -169,3 +169,45 @@ func (r *IntegrationConnectionRepository) UpdateErrorCount(ctx context.Context, 
 	}
 	return nil
 }
+
+// ListByOrg returns all connections for an org.
+func (r *IntegrationConnectionRepository) ListByOrg(ctx context.Context, orgID uuid.UUID) ([]*IntegrationConnection, error) {
+	query := `
+		SELECT id, org_id, provider, status, access_token_encrypted, refresh_token_encrypted,
+			token_expires_at, external_account_id, scopes, COALESCE(metadata, '{}'),
+			last_sync_at, COALESCE(last_sync_error, ''), created_at, updated_at
+		FROM integration_connections
+		WHERE org_id = $1
+		ORDER BY created_at`
+
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("list connections by org: %w", err)
+	}
+	defer rows.Close()
+
+	var conns []*IntegrationConnection
+	for rows.Next() {
+		c := &IntegrationConnection{}
+		if err := rows.Scan(
+			&c.ID, &c.OrgID, &c.Provider, &c.Status, &c.AccessTokenEncrypted, &c.RefreshTokenEncrypted,
+			&c.TokenExpiresAt, &c.ExternalAccountID, &c.Scopes, &c.Metadata,
+			&c.LastSyncAt, &c.LastSyncError, &c.CreatedAt, &c.UpdatedAt,
+		); err != nil {
+			return nil, fmt.Errorf("scan connection: %w", err)
+		}
+		conns = append(conns, c)
+	}
+	return conns, rows.Err()
+}
+
+// GetCustomerCountBySource returns the number of customers from a specific source.
+func (r *IntegrationConnectionRepository) GetCustomerCountBySource(ctx context.Context, orgID uuid.UUID, source string) (int, error) {
+	query := `SELECT COUNT(*) FROM customers WHERE org_id = $1 AND source = $2 AND deleted_at IS NULL`
+	var count int
+	err := r.pool.QueryRow(ctx, query, orgID, source).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count customers by source: %w", err)
+	}
+	return count, nil
+}

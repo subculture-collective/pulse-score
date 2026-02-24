@@ -249,3 +249,149 @@ func (r *HealthScoreRepository) ScoreDistribution(ctx context.Context, orgID uui
 	}
 	return scores, rows.Err()
 }
+
+// GetAverageScore returns the average overall score for an org.
+func (r *HealthScoreRepository) GetAverageScore(ctx context.Context, orgID uuid.UUID) (float64, error) {
+	query := `SELECT COALESCE(AVG(overall_score), 0) FROM health_scores WHERE org_id = $1`
+	var avg float64
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&avg)
+	if err != nil {
+		return 0, fmt.Errorf("get average score: %w", err)
+	}
+	return avg, nil
+}
+
+// GetMedianScore returns the median overall score for an org.
+func (r *HealthScoreRepository) GetMedianScore(ctx context.Context, orgID uuid.UUID) (float64, error) {
+	query := `SELECT COALESCE(PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY overall_score), 0) FROM health_scores WHERE org_id = $1`
+	var median float64
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&median)
+	if err != nil {
+		return 0, fmt.Errorf("get median score: %w", err)
+	}
+	return median, nil
+}
+
+// RiskDistribution holds risk level counts.
+type RiskDistribution struct {
+	Green  int
+	Yellow int
+	Red    int
+}
+
+// GetRiskDistribution returns counts of customers by risk level.
+func (r *HealthScoreRepository) GetRiskDistribution(ctx context.Context, orgID uuid.UUID) (*RiskDistribution, error) {
+	counts, err := r.CountByRiskLevel(ctx, orgID)
+	if err != nil {
+		return nil, err
+	}
+	return &RiskDistribution{
+		Green:  counts["low"],
+		Yellow: counts["medium"],
+		Red:    counts["high"] + counts["critical"],
+	}, nil
+}
+
+// GetAverageScoreAt returns the average score from history at a given point in time.
+func (r *HealthScoreRepository) GetAverageScoreAt(ctx context.Context, orgID uuid.UUID, at time.Time) (float64, error) {
+	query := `
+		SELECT COALESCE(AVG(overall_score), 0)
+		FROM (
+			SELECT DISTINCT ON (customer_id) overall_score
+			FROM health_score_history
+			WHERE org_id = $1 AND calculated_at <= $2
+			ORDER BY customer_id, calculated_at DESC
+		) sub`
+	var avg float64
+	err := r.pool.QueryRow(ctx, query, orgID, at).Scan(&avg)
+	if err != nil {
+		return 0, fmt.Errorf("get average score at: %w", err)
+	}
+	return avg, nil
+}
+
+// CountAtRisk returns the number of customers with high/critical risk level.
+func (r *HealthScoreRepository) CountAtRisk(ctx context.Context, orgID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM health_scores WHERE org_id = $1 AND risk_level IN ('high', 'critical')`
+	var count int
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count at risk: %w", err)
+	}
+	return count, nil
+}
+
+// CountAtRiskAt returns the at-risk count from history at a given point in time.
+func (r *HealthScoreRepository) CountAtRiskAt(ctx context.Context, orgID uuid.UUID, at time.Time) (int, error) {
+	query := `
+		SELECT COUNT(*)
+		FROM (
+			SELECT DISTINCT ON (customer_id) risk_level
+			FROM health_score_history
+			WHERE org_id = $1 AND calculated_at <= $2
+			ORDER BY customer_id, calculated_at DESC
+		) sub
+		WHERE risk_level IN ('high', 'critical')`
+	var count int
+	err := r.pool.QueryRow(ctx, query, orgID, at).Scan(&count)
+	if err != nil {
+		return 0, fmt.Errorf("count at risk at: %w", err)
+	}
+	return count, nil
+}
+
+// ScoreBucket represents a bucket in the score distribution histogram.
+type ScoreBucket struct {
+	Range string `json:"range"`
+	Count int    `json:"count"`
+}
+
+// GetScoreBuckets returns score buckets for histogram display.
+func (r *HealthScoreRepository) GetScoreBuckets(ctx context.Context, orgID uuid.UUID) ([]ScoreBucket, error) {
+	query := `
+		SELECT
+			CASE
+				WHEN overall_score BETWEEN 0 AND 10 THEN '0-10'
+				WHEN overall_score BETWEEN 11 AND 20 THEN '11-20'
+				WHEN overall_score BETWEEN 21 AND 30 THEN '21-30'
+				WHEN overall_score BETWEEN 31 AND 40 THEN '31-40'
+				WHEN overall_score BETWEEN 41 AND 50 THEN '41-50'
+				WHEN overall_score BETWEEN 51 AND 60 THEN '51-60'
+				WHEN overall_score BETWEEN 61 AND 70 THEN '61-70'
+				WHEN overall_score BETWEEN 71 AND 80 THEN '71-80'
+				WHEN overall_score BETWEEN 81 AND 90 THEN '81-90'
+				WHEN overall_score BETWEEN 91 AND 100 THEN '91-100'
+			END AS score_range,
+			COUNT(*) as count
+		FROM health_scores
+		WHERE org_id = $1
+		GROUP BY score_range
+		ORDER BY MIN(overall_score)`
+
+	rows, err := r.pool.Query(ctx, query, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("get score buckets: %w", err)
+	}
+	defer rows.Close()
+
+	bucketMap := make(map[string]int)
+	for rows.Next() {
+		var r string
+		var c int
+		if err := rows.Scan(&r, &c); err != nil {
+			return nil, fmt.Errorf("scan bucket: %w", err)
+		}
+		bucketMap[r] = c
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	// Return all 10 buckets, filling in zeros
+	allRanges := []string{"0-10", "11-20", "21-30", "31-40", "41-50", "51-60", "61-70", "71-80", "81-90", "91-100"}
+	buckets := make([]ScoreBucket, len(allRanges))
+	for i, r := range allRanges {
+		buckets[i] = ScoreBucket{Range: r, Count: bucketMap[r]}
+	}
+	return buckets, nil
+}

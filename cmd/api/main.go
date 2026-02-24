@@ -88,6 +88,12 @@ func main() {
 	r.Get("/healthz", health.Liveness)
 	r.Get("/readyz", health.Readiness)
 
+	// API documentation (no auth)
+	docsHandler := handler.NewDocsHandler("docs/openapi.yaml")
+	r.Get("/api/docs/openapi.yaml", docsHandler.ServeSpec)
+	r.Get("/api/docs", docsHandler.ServeUI)
+	r.Get("/api/docs/*", docsHandler.ServeUI)
+
 	// API v1 route group
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/ping", func(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +224,8 @@ func main() {
 				orgSvc := service.NewOrganizationService(pool.P, orgRepo)
 				orgHandler := handler.NewOrganizationHandler(orgSvc)
 				r.Post("/organizations", orgHandler.Create)
+				r.Get("/organizations/current", orgHandler.GetCurrent)
+				r.Patch("/organizations/current", orgHandler.UpdateCurrent)
 
 				// User profile routes
 				userSvc := service.NewUserService(userRepo, orgRepo)
@@ -225,12 +233,61 @@ func main() {
 				r.Get("/users/me", userHandler.GetProfile)
 				r.Patch("/users/me", userHandler.UpdateProfile)
 
+				// Customer routes
+				customerSvc := service.NewCustomerService(customerRepo, healthScoreRepo, subRepo, eventRepo)
+				customerHandler := handler.NewCustomerHandler(customerSvc)
+				r.Get("/customers", customerHandler.List)
+				r.Get("/customers/{id}", customerHandler.GetDetail)
+				r.Get("/customers/{id}/events", customerHandler.ListEvents)
+
+				// Dashboard routes
+				dashboardSvc := service.NewDashboardService(customerRepo, healthScoreRepo)
+				dashboardHandler := handler.NewDashboardHandler(dashboardSvc)
+				r.Get("/dashboard/summary", dashboardHandler.GetSummary)
+				r.Get("/dashboard/score-distribution", dashboardHandler.GetScoreDistribution)
+
+				// Integration management routes (admin+ required)
+				integrationSvc := service.NewIntegrationService(connRepo, stripeOAuthSvc, syncOrchestrator)
+				integrationHandler := handler.NewIntegrationHandler(integrationSvc)
+				r.Route("/integrations", func(r chi.Router) {
+					r.Get("/", integrationHandler.List)
+					r.Route("/{provider}", func(r chi.Router) {
+						r.Use(middleware.RequireRole("admin"))
+						r.Get("/status", integrationHandler.GetStatus)
+						r.Post("/sync", integrationHandler.TriggerSync)
+						r.Delete("/", integrationHandler.Disconnect)
+					})
+				})
+
+				// Member management routes (admin+ required)
+				memberSvc := service.NewMemberService(orgRepo)
+				memberHandler := handler.NewMemberHandler(memberSvc)
+				r.Get("/members", memberHandler.List)
+				r.Route("/members/{id}", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Patch("/role", memberHandler.UpdateRole)
+					r.Delete("/", memberHandler.Remove)
+				})
+
 				// Invitation routes (admin+ required)
 				r.Route("/invitations", func(r chi.Router) {
 					r.Use(middleware.RequireRole("admin"))
 					r.Post("/", invitationHandler.Create)
 					r.Get("/", invitationHandler.List)
 					r.Delete("/{id}", invitationHandler.Revoke)
+				})
+
+				// Alert rule routes (admin+ required)
+				alertRuleRepo := repository.NewAlertRuleRepository(pool.P)
+				alertRuleSvc := service.NewAlertRuleService(alertRuleRepo)
+				alertRuleHandler := handler.NewAlertRuleHandler(alertRuleSvc)
+				r.Route("/alerts/rules", func(r chi.Router) {
+					r.Use(middleware.RequireRole("admin"))
+					r.Get("/", alertRuleHandler.List)
+					r.Post("/", alertRuleHandler.Create)
+					r.Get("/{id}", alertRuleHandler.Get)
+					r.Patch("/{id}", alertRuleHandler.Update)
+					r.Delete("/{id}", alertRuleHandler.Delete)
 				})
 
 				// Stripe integration routes (admin+ required)

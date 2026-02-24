@@ -1,0 +1,1771 @@
+openapi: "3.0.3"
+info:
+  title: PulseScore API
+  version: "1.0.0"
+  description: |
+    Customer health scoring platform API.
+    PulseScore ingests data from integrations (Stripe, etc.), computes health scores,
+    and surfaces risk analytics through a REST API consumed by the React dashboard.
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Health
+    description: Infrastructure health checks
+  - name: Auth
+    description: Authentication and password management
+  - name: Users
+    description: User profile management
+  - name: Organizations
+    description: Organization settings
+  - name: Customers
+    description: Customer list, detail, and timeline
+  - name: Dashboard
+    description: Dashboard analytics and score distribution
+  - name: Integrations
+    description: Integration management (generic)
+  - name: Stripe
+    description: Stripe-specific integration endpoints
+  - name: Members
+    description: Organization member management
+  - name: Invitations
+    description: Team invitation management
+  - name: Alert Rules
+    description: Alert rule CRUD
+  - name: Scoring
+    description: Health scoring engine configuration
+
+paths:
+  # ── Health Checks ──────────────────────────────────────────────
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Liveness probe
+      security: []
+      operationId: liveness
+      responses:
+        "200":
+          description: Service is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Readiness probe
+      security: []
+      operationId: readiness
+      responses:
+        "200":
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  db:
+                    type: string
+                    example: connected
+        "503":
+          description: Service is degraded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: degraded
+                  db:
+                    type: string
+                    example: unreachable
+
+  # ── Auth ───────────────────────────────────────────────────────
+  /auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user and organization
+      security: []
+      operationId: register
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      security: []
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      security: []
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/password-reset/request:
+    post:
+      tags: [Auth]
+      summary: Request a password reset email
+      security: []
+      operationId: requestPasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        "200":
+          description: Always returns success to prevent email enumeration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /auth/password-reset/complete:
+    post:
+      tags: [Auth]
+      summary: Complete password reset with token
+      security: []
+      operationId: completePasswordReset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, new_password]
+              properties:
+                token:
+                  type: string
+                new_password:
+                  type: string
+                  minLength: 8
+      responses:
+        "200":
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Invitations (public) ───────────────────────────────────────
+  /invitations/accept:
+    post:
+      tags: [Invitations]
+      summary: Accept an organization invitation
+      security: []
+      operationId: acceptInvitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AcceptInvitationRequest"
+      responses:
+        "200":
+          description: Invitation accepted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Webhooks ───────────────────────────────────────────────────
+  /webhooks/stripe:
+    post:
+      tags: [Stripe]
+      summary: Stripe webhook receiver
+      security: []
+      operationId: stripeWebhook
+      parameters:
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        "200":
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  # ── Organizations ──────────────────────────────────────────────
+  /organizations:
+    post:
+      tags: [Organizations]
+      summary: Create a new organization
+      operationId: createOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+      responses:
+        "201":
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Organization"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /organizations/current:
+    get:
+      tags: [Organizations]
+      summary: Get current organization with stats
+      operationId: getCurrentOrganization
+      responses:
+        "200":
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationWithStats"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Organizations]
+      summary: Update current organization settings
+      operationId: updateOrganization
+      description: Requires admin role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  minLength: 2
+                  maxLength: 100
+      responses:
+        "200":
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrganizationWithStats"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Users ──────────────────────────────────────────────────────
+  /users/me:
+    get:
+      tags: [Users]
+      summary: Get current user profile
+      operationId: getUserProfile
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+    patch:
+      tags: [Users]
+      summary: Update current user profile
+      operationId: updateUserProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserProfileRequest"
+      responses:
+        "200":
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Customers ──────────────────────────────────────────────────
+  /customers:
+    get:
+      tags: [Customers]
+      summary: List customers with pagination, sorting, and filtering
+      operationId: listCustomers
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 25
+            minimum: 1
+            maximum: 100
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [name, mrr, score, last_seen]
+            default: name
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: risk
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: search
+          in: query
+          description: Case-insensitive search on name or email
+          schema:
+            type: string
+        - name: source
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Paginated customer list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerListResponse"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer detail with health score, subscriptions, and recent events
+      operationId: getCustomerDetail
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+      responses:
+        "200":
+          description: Customer detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerDetail"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /customers/{id}/events:
+    get:
+      tags: [Customers]
+      summary: List customer events/timeline with pagination and filtering
+      operationId: listCustomerEvents
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+            minimum: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 25
+            minimum: 1
+            maximum: 100
+        - name: type
+          in: query
+          description: Filter by event type
+          schema:
+            type: string
+        - name: from
+          in: query
+          description: Start date (RFC 3339)
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: End date (RFC 3339)
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Paginated event list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EventListResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Dashboard ──────────────────────────────────────────────────
+  /dashboard/summary:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard summary stats with trend data
+      operationId: getDashboardSummary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/score-distribution:
+    get:
+      tags: [Dashboard]
+      summary: Get health score distribution histogram
+      operationId: getScoreDistribution
+      responses:
+        "200":
+          description: Score distribution data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoreDistribution"
+
+  # ── Integrations (generic) ────────────────────────────────────
+  /integrations:
+    get:
+      tags: [Integrations]
+      summary: List all connected integrations
+      operationId: listIntegrations
+      responses:
+        "200":
+          description: Integration list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  integrations:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/IntegrationSummary"
+
+  /integrations/{provider}/status:
+    get:
+      tags: [Integrations]
+      summary: Get detailed integration status
+      description: Requires admin role.
+      operationId: getIntegrationStatus
+      parameters:
+        - $ref: "#/components/parameters/Provider"
+      responses:
+        "200":
+          description: Integration status detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/IntegrationStatus"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /integrations/{provider}/sync:
+    post:
+      tags: [Integrations]
+      summary: Trigger a manual sync for an integration
+      description: Requires admin role.
+      operationId: triggerIntegrationSync
+      parameters:
+        - $ref: "#/components/parameters/Provider"
+      responses:
+        "202":
+          description: Sync started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              example:
+                status: sync_started
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /integrations/{provider}:
+    delete:
+      tags: [Integrations]
+      summary: Disconnect an integration
+      description: Requires admin role.
+      operationId: disconnectIntegration
+      parameters:
+        - $ref: "#/components/parameters/Provider"
+      responses:
+        "204":
+          description: Integration disconnected
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Stripe Integration ────────────────────────────────────────
+  /integrations/stripe/connect:
+    get:
+      tags: [Stripe]
+      summary: Get Stripe OAuth connect URL
+      description: Requires admin role.
+      operationId: stripeConnect
+      responses:
+        "200":
+          description: Stripe OAuth URL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url:
+                    type: string
+                    format: uri
+
+  /integrations/stripe/callback:
+    get:
+      tags: [Stripe]
+      summary: Handle Stripe OAuth callback
+      description: Requires admin role.
+      operationId: stripeCallback
+      parameters:
+        - name: code
+          in: query
+          schema:
+            type: string
+        - name: state
+          in: query
+          schema:
+            type: string
+        - name: error
+          in: query
+          schema:
+            type: string
+        - name: error_description
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stripe connected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /integrations/stripe/status:
+    get:
+      tags: [Stripe]
+      summary: Get Stripe connection status
+      description: Requires admin role.
+      operationId: stripeStatus
+      responses:
+        "200":
+          description: Connection status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StripeConnectionStatus"
+
+  /integrations/stripe:
+    delete:
+      tags: [Stripe]
+      summary: Disconnect Stripe integration
+      description: Requires admin role.
+      operationId: stripeDisconnect
+      responses:
+        "200":
+          description: Stripe disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /integrations/stripe/sync:
+    post:
+      tags: [Stripe]
+      summary: Trigger Stripe data sync
+      description: Requires admin role.
+      operationId: stripeSync
+      responses:
+        "202":
+          description: Sync started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # ── Members ────────────────────────────────────────────────────
+  /members:
+    get:
+      tags: [Members]
+      summary: List organization members
+      operationId: listMembers
+      responses:
+        "200":
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  members:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/OrgMember"
+
+  /members/{id}/role:
+    patch:
+      tags: [Members]
+      summary: Update a member's role
+      description: Requires admin role. Cannot change own role.
+      operationId: updateMemberRole
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role:
+                  type: string
+                  enum: [owner, admin, member]
+      responses:
+        "200":
+          description: Role updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusResponse"
+              example:
+                status: updated
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /members/{id}:
+    delete:
+      tags: [Members]
+      summary: Remove a member from the organization
+      description: Requires admin role. Cannot remove self or last owner.
+      operationId: removeMember
+      parameters:
+        - $ref: "#/components/parameters/UserID"
+      responses:
+        "204":
+          description: Member removed
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  # ── Invitations (protected) ────────────────────────────────────
+  /invitations:
+    get:
+      tags: [Invitations]
+      summary: List pending invitations
+      description: Requires admin role.
+      operationId: listInvitations
+      responses:
+        "200":
+          description: Invitation list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Invitation"
+    post:
+      tags: [Invitations]
+      summary: Create an invitation
+      description: Requires admin role.
+      operationId: createInvitation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                role:
+                  type: string
+                  enum: [member, admin]
+                  default: member
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Invitation"
+        "409":
+          $ref: "#/components/responses/Conflict"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /invitations/{id}:
+    delete:
+      tags: [Invitations]
+      summary: Revoke an invitation
+      description: Requires admin role.
+      operationId: revokeInvitation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Invitation revoked
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Alert Rules ────────────────────────────────────────────────
+  /alerts/rules:
+    get:
+      tags: [Alert Rules]
+      summary: List alert rules
+      description: Requires admin role.
+      operationId: listAlertRules
+      responses:
+        "200":
+          description: Alert rule list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  rules:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AlertRule"
+    post:
+      tags: [Alert Rules]
+      summary: Create an alert rule
+      description: Requires admin role.
+      operationId: createAlertRule
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAlertRuleRequest"
+      responses:
+        "201":
+          description: Alert rule created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+  /alerts/rules/{id}:
+    get:
+      tags: [Alert Rules]
+      summary: Get an alert rule by ID
+      description: Requires admin role.
+      operationId: getAlertRule
+      parameters:
+        - $ref: "#/components/parameters/AlertRuleID"
+      responses:
+        "200":
+          description: Alert rule detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Alert Rules]
+      summary: Update an alert rule
+      description: Requires admin role.
+      operationId: updateAlertRule
+      parameters:
+        - $ref: "#/components/parameters/AlertRuleID"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAlertRuleRequest"
+      responses:
+        "200":
+          description: Alert rule updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AlertRule"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+    delete:
+      tags: [Alert Rules]
+      summary: Delete an alert rule
+      description: Requires admin role.
+      operationId: deleteAlertRule
+      parameters:
+        - $ref: "#/components/parameters/AlertRuleID"
+      responses:
+        "204":
+          description: Alert rule deleted
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ── Scoring ────────────────────────────────────────────────────
+  /scoring/risk-distribution:
+    get:
+      tags: [Scoring]
+      summary: Get risk level distribution counts
+      operationId: getRiskDistribution
+      responses:
+        "200":
+          description: Risk distribution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RiskDistribution"
+
+  /scoring/histogram:
+    get:
+      tags: [Scoring]
+      summary: Get score histogram buckets
+      operationId: getScoreHistogram
+      responses:
+        "200":
+          description: Score histogram
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/HistogramBucket"
+
+  /scoring/customers/{id}/recalculate:
+    post:
+      tags: [Scoring]
+      summary: Trigger score recalculation for a customer
+      operationId: recalculateCustomerScore
+      parameters:
+        - $ref: "#/components/parameters/CustomerID"
+      responses:
+        "202":
+          description: Recalculation triggered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /scoring/config:
+    get:
+      tags: [Scoring]
+      summary: Get scoring configuration
+      description: Requires admin role.
+      operationId: getScoringConfig
+      responses:
+        "200":
+          description: Scoring configuration
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoringConfig"
+    put:
+      tags: [Scoring]
+      summary: Update scoring configuration
+      description: Requires admin role. Weights must sum to 1.0.
+      operationId: updateScoringConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateScoringConfigRequest"
+      responses:
+        "200":
+          description: Configuration updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScoringConfig"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationError"
+
+# ══════════════════════════════════════════════════════════════════
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    CustomerID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    UserID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AlertRuleID:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    Provider:
+      name: provider
+      in: path
+      required: true
+      schema:
+        type: string
+        example: stripe
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Unauthorized:
+      description: Authentication required or failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Forbidden:
+      description: Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    Conflict:
+      description: Resource conflict
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ValidationErrorResponse"
+
+  schemas:
+    # ── Common ─────────────────────────────────────────────────
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+
+    ValidationErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        field:
+          type: string
+
+    StatusResponse:
+      type: object
+      properties:
+        status:
+          type: string
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        per_page:
+          type: integer
+        total:
+          type: integer
+        total_pages:
+          type: integer
+
+    # ── Auth ───────────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [email, password, first_name, last_name, org_name]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        first_name:
+          type: string
+        last_name:
+          type: string
+        org_name:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            email:
+              type: string
+            first_name:
+              type: string
+            last_name:
+              type: string
+        organization:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            slug:
+              type: string
+            role:
+              type: string
+        tokens:
+          type: object
+          properties:
+            access_token:
+              type: string
+            refresh_token:
+              type: string
+
+    AcceptInvitationRequest:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          minLength: 8
+        first_name:
+          type: string
+        last_name:
+          type: string
+
+    # ── Organization ───────────────────────────────────────────
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        plan:
+          type: string
+
+    OrganizationWithStats:
+      allOf:
+        - $ref: "#/components/schemas/Organization"
+        - type: object
+          properties:
+            member_count:
+              type: integer
+            customer_count:
+              type: integer
+
+    # ── User ───────────────────────────────────────────────────
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        avatar_url:
+          type: string
+          nullable: true
+        organizations:
+          type: array
+          items:
+            type: object
+            properties:
+              org_id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              slug:
+                type: string
+              role:
+                type: string
+
+    UpdateUserProfileRequest:
+      type: object
+      properties:
+        first_name:
+          type: string
+          nullable: true
+        last_name:
+          type: string
+          nullable: true
+        avatar_url:
+          type: string
+          nullable: true
+
+    # ── Customer ───────────────────────────────────────────────
+    CustomerSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        email:
+          type: string
+        company_name:
+          type: string
+        mrr_cents:
+          type: integer
+        source:
+          type: string
+        last_seen_at:
+          type: string
+          format: date-time
+          nullable: true
+        overall_score:
+          type: integer
+          nullable: true
+        risk_level:
+          type: string
+          nullable: true
+
+    CustomerListResponse:
+      type: object
+      properties:
+        customers:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerSummary"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    CustomerDetail:
+      type: object
+      properties:
+        customer:
+          type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+            email:
+              type: string
+            company_name:
+              type: string
+            mrr_cents:
+              type: integer
+            currency:
+              type: string
+            source:
+              type: string
+            external_id:
+              type: string
+            first_seen_at:
+              type: string
+              format: date-time
+              nullable: true
+            last_seen_at:
+              type: string
+              format: date-time
+              nullable: true
+            metadata:
+              type: object
+            created_at:
+              type: string
+              format: date-time
+        health_score:
+          nullable: true
+          type: object
+          properties:
+            overall_score:
+              type: integer
+            risk_level:
+              type: string
+            factors:
+              type: object
+              additionalProperties:
+                type: number
+            calculated_at:
+              type: string
+              format: date-time
+        subscriptions:
+          type: array
+          items:
+            $ref: "#/components/schemas/Subscription"
+        recent_events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerEvent"
+
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        stripe_subscription_id:
+          type: string
+        status:
+          type: string
+        plan_name:
+          type: string
+        amount_cents:
+          type: integer
+        currency:
+          type: string
+        interval:
+          type: string
+        current_period_end:
+          type: string
+          format: date-time
+          nullable: true
+
+    CustomerEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        source:
+          type: string
+        occurred_at:
+          type: string
+          format: date-time
+        data:
+          type: object
+
+    EventListResponse:
+      type: object
+      properties:
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/CustomerEvent"
+        pagination:
+          $ref: "#/components/schemas/Pagination"
+
+    # ── Dashboard ──────────────────────────────────────────────
+    DashboardSummary:
+      type: object
+      properties:
+        total_customers:
+          type: integer
+        risk_distribution:
+          type: object
+          properties:
+            green:
+              type: integer
+            yellow:
+              type: integer
+            red:
+              type: integer
+        total_mrr_cents:
+          type: integer
+          format: int64
+        mrr_change_30d_cents:
+          type: integer
+          format: int64
+        at_risk_count:
+          type: integer
+        at_risk_change_7d:
+          type: integer
+        avg_health_score:
+          type: number
+          format: double
+        score_change_7d:
+          type: number
+          format: double
+
+    ScoreDistribution:
+      type: object
+      properties:
+        buckets:
+          type: array
+          items:
+            type: object
+            properties:
+              range:
+                type: string
+                example: "0-10"
+              count:
+                type: integer
+        risk_breakdown:
+          type: object
+          properties:
+            green:
+              $ref: "#/components/schemas/RiskBreakdownEntry"
+            yellow:
+              $ref: "#/components/schemas/RiskBreakdownEntry"
+            red:
+              $ref: "#/components/schemas/RiskBreakdownEntry"
+        average_score:
+          type: number
+          format: double
+        median_score:
+          type: number
+          format: double
+
+    RiskBreakdownEntry:
+      type: object
+      properties:
+        count:
+          type: integer
+        pct:
+          type: number
+          format: double
+
+    # ── Integration ────────────────────────────────────────────
+    IntegrationSummary:
+      type: object
+      properties:
+        provider:
+          type: string
+        status:
+          type: string
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_sync_error:
+          type: string
+        customer_count:
+          type: integer
+        connected_at:
+          type: string
+          format: date-time
+
+    IntegrationStatus:
+      allOf:
+        - $ref: "#/components/schemas/IntegrationSummary"
+        - type: object
+          properties:
+            external_account_id:
+              type: string
+            scopes:
+              type: array
+              items:
+                type: string
+
+    StripeConnectionStatus:
+      type: object
+      properties:
+        status:
+          type: string
+        external_account_id:
+          type: string
+        last_sync_at:
+          type: string
+          format: date-time
+          nullable: true
+        last_sync_error:
+          type: string
+        connected_at:
+          type: string
+          format: date-time
+
+    # ── Members ────────────────────────────────────────────────
+    OrgMember:
+      type: object
+      properties:
+        user_id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        first_name:
+          type: string
+        last_name:
+          type: string
+        avatar_url:
+          type: string
+          nullable: true
+        role:
+          type: string
+          enum: [owner, admin, member]
+        joined_at:
+          type: string
+          format: date-time
+
+    # ── Invitations ────────────────────────────────────────────
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+        status:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+        created_at:
+          type: string
+          format: date-time
+
+    # ── Alert Rules ────────────────────────────────────────────
+    AlertRule:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+          nullable: true
+        trigger_type:
+          type: string
+          enum: [score_drop, risk_change, payment_failed]
+        conditions:
+          type: object
+        channel:
+          type: string
+        recipients:
+          type: array
+          items:
+            type: string
+            format: email
+        is_active:
+          type: boolean
+        created_by:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateAlertRuleRequest:
+      type: object
+      required: [name, trigger_type, recipients]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        trigger_type:
+          type: string
+          enum: [score_drop, risk_change, payment_failed]
+        conditions:
+          type: object
+        channel:
+          type: string
+          default: email
+        recipients:
+          type: array
+          minItems: 1
+          items:
+            type: string
+            format: email
+        is_active:
+          type: boolean
+          default: true
+
+    UpdateAlertRuleRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          nullable: true
+        description:
+          type: string
+          nullable: true
+        trigger_type:
+          type: string
+          enum: [score_drop, risk_change, payment_failed]
+          nullable: true
+        conditions:
+          type: object
+          nullable: true
+        channel:
+          type: string
+          nullable: true
+        recipients:
+          type: array
+          items:
+            type: string
+            format: email
+          nullable: true
+        is_active:
+          type: boolean
+          nullable: true
+
+    # ── Scoring ────────────────────────────────────────────────
+    RiskDistribution:
+      type: object
+      properties:
+        green:
+          type: integer
+        yellow:
+          type: integer
+        red:
+          type: integer
+        total:
+          type: integer
+
+    HistogramBucket:
+      type: object
+      properties:
+        min:
+          type: integer
+        max:
+          type: integer
+        count:
+          type: integer
+
+    ScoringConfig:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        org_id:
+          type: string
+          format: uuid
+        weights:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+          example:
+            payment_recency: 0.3
+            mrr_trend: 0.2
+            failed_payments: 0.2
+            support_tickets: 0.15
+            engagement: 0.15
+        thresholds:
+          type: object
+          properties:
+            green:
+              type: integer
+            yellow:
+              type: integer
+          example:
+            green: 70
+            yellow: 40
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UpdateScoringConfigRequest:
+      type: object
+      properties:
+        weights:
+          type: object
+          additionalProperties:
+            type: number
+            format: double
+        thresholds:
+          type: object
+          properties:
+            green:
+              type: integer
+            yellow:
+              type: integer

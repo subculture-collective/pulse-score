@@ -170,3 +170,166 @@ func (r *CustomerRepository) CountByOrg(ctx context.Context, orgID uuid.UUID) (i
 	}
 	return count, nil
 }
+
+// TotalMRRByOrg returns the sum of mrr_cents for all active customers in an org.
+func (r *CustomerRepository) TotalMRRByOrg(ctx context.Context, orgID uuid.UUID) (int64, error) {
+	query := `SELECT COALESCE(SUM(mrr_cents), 0) FROM customers WHERE org_id = $1 AND deleted_at IS NULL`
+	var total int64
+	err := r.pool.QueryRow(ctx, query, orgID).Scan(&total)
+	if err != nil {
+		return 0, fmt.Errorf("total mrr: %w", err)
+	}
+	return total, nil
+}
+
+// GetByIDAndOrg retrieves a customer by ID and org ID (tenant-safe).
+func (r *CustomerRepository) GetByIDAndOrg(ctx context.Context, id, orgID uuid.UUID) (*Customer, error) {
+	query := `
+		SELECT id, org_id, external_id, source, COALESCE(email, ''), COALESCE(name, ''),
+			COALESCE(company_name, ''), mrr_cents, currency,
+			first_seen_at, last_seen_at, COALESCE(metadata, '{}'), created_at, updated_at, deleted_at
+		FROM customers
+		WHERE id = $1 AND org_id = $2 AND deleted_at IS NULL`
+
+	c := &Customer{}
+	err := r.pool.QueryRow(ctx, query, id, orgID).Scan(
+		&c.ID, &c.OrgID, &c.ExternalID, &c.Source, &c.Email, &c.Name,
+		&c.CompanyName, &c.MRRCents, &c.Currency,
+		&c.FirstSeenAt, &c.LastSeenAt, &c.Metadata, &c.CreatedAt, &c.UpdatedAt, &c.DeletedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get customer by id and org: %w", err)
+	}
+	return c, nil
+}
+
+// CustomerListParams holds pagination and filter params for customer listing.
+type CustomerListParams struct {
+	OrgID   uuid.UUID
+	Page    int
+	PerPage int
+	Sort    string
+	Order   string
+	Risk    string
+	Search  string
+	Source  string
+}
+
+// CustomerWithScore holds a customer with its health score data.
+type CustomerWithScore struct {
+	Customer
+	OverallScore *int
+	RiskLevel    *string
+}
+
+// CustomerListResult holds paginated customer list results.
+type CustomerListResult struct {
+	Customers  []CustomerWithScore
+	Total      int
+	Page       int
+	PerPage    int
+	TotalPages int
+}
+
+// ListWithScores returns a paginated customer list with health score join.
+func (r *CustomerRepository) ListWithScores(ctx context.Context, params CustomerListParams) (*CustomerListResult, error) {
+	// Build WHERE clauses
+	where := "c.org_id = $1 AND c.deleted_at IS NULL"
+	args := []any{params.OrgID}
+	argIdx := 2
+
+	if params.Risk != "" {
+		where += fmt.Sprintf(" AND hs.risk_level = $%d", argIdx)
+		args = append(args, params.Risk)
+		argIdx++
+	}
+	if params.Search != "" {
+		where += fmt.Sprintf(" AND (c.name ILIKE $%d OR c.email ILIKE $%d)", argIdx, argIdx)
+		args = append(args, "%"+params.Search+"%")
+		argIdx++
+	}
+	if params.Source != "" {
+		where += fmt.Sprintf(" AND c.source = $%d", argIdx)
+		args = append(args, params.Source)
+		argIdx++
+	}
+
+	// Count query
+	countQuery := fmt.Sprintf(`SELECT COUNT(*) FROM customers c LEFT JOIN health_scores hs ON c.id = hs.customer_id WHERE %s`, where)
+	var total int
+	if err := r.pool.QueryRow(ctx, countQuery, args...).Scan(&total); err != nil {
+		return nil, fmt.Errorf("count customers with scores: %w", err)
+	}
+
+	totalPages := 0
+	if params.PerPage > 0 {
+		totalPages = (total + params.PerPage - 1) / params.PerPage
+	}
+
+	// Sort validation
+	sortColumn := "c.name"
+	sortAllowlist := map[string]string{
+		"name":      "c.name",
+		"mrr":       "c.mrr_cents",
+		"score":     "hs.overall_score",
+		"last_seen": "c.last_seen_at",
+	}
+	if col, ok := sortAllowlist[params.Sort]; ok {
+		sortColumn = col
+	}
+
+	order := "ASC"
+	if params.Order == "desc" {
+		order = "DESC"
+	}
+
+	// Data query
+	dataQuery := fmt.Sprintf(`
+		SELECT c.id, c.org_id, c.external_id, c.source, COALESCE(c.email, ''), COALESCE(c.name, ''),
+			COALESCE(c.company_name, ''), c.mrr_cents, c.currency,
+			c.first_seen_at, c.last_seen_at, COALESCE(c.metadata, '{}'), c.created_at, c.updated_at, c.deleted_at,
+			hs.overall_score, hs.risk_level
+		FROM customers c
+		LEFT JOIN health_scores hs ON c.id = hs.customer_id
+		WHERE %s
+		ORDER BY %s %s NULLS LAST
+		LIMIT $%d OFFSET $%d`,
+		where, sortColumn, order, argIdx, argIdx+1)
+
+	offset := (params.Page - 1) * params.PerPage
+	args = append(args, params.PerPage, offset)
+
+	rows, err := r.pool.Query(ctx, dataQuery, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list customers with scores: %w", err)
+	}
+	defer rows.Close()
+
+	var customers []CustomerWithScore
+	for rows.Next() {
+		cs := CustomerWithScore{}
+		if err := rows.Scan(
+			&cs.ID, &cs.OrgID, &cs.ExternalID, &cs.Source, &cs.Email, &cs.Name,
+			&cs.CompanyName, &cs.MRRCents, &cs.Currency,
+			&cs.FirstSeenAt, &cs.LastSeenAt, &cs.Metadata, &cs.CreatedAt, &cs.UpdatedAt, &cs.DeletedAt,
+			&cs.OverallScore, &cs.RiskLevel,
+		); err != nil {
+			return nil, fmt.Errorf("scan customer with score: %w", err)
+		}
+		customers = append(customers, cs)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return &CustomerListResult{
+		Customers:  customers,
+		Total:      total,
+		Page:       params.Page,
+		PerPage:    params.PerPage,
+		TotalPages: totalPages,
+	}, nil
+}

@@ -35,6 +35,76 @@ func NewOrganizationService(pool *pgxpool.Pool, orgs *repository.OrganizationRep
 	return &OrganizationService{pool: pool, orgs: orgs}
 }
 
+// UpdateOrgRequest holds input for updating an organization.
+type UpdateOrgRequest struct {
+	Name string `json:"name"`
+}
+
+// OrgDetailResponse is the response for organization detail.
+type OrgDetailResponse struct {
+	ID            uuid.UUID `json:"id"`
+	Name          string    `json:"name"`
+	Slug          string    `json:"slug"`
+	Plan          string    `json:"plan"`
+	MemberCount   int       `json:"member_count"`
+	CustomerCount int       `json:"customer_count"`
+}
+
+// GetCurrent returns the current org with stats.
+func (s *OrganizationService) GetCurrent(ctx context.Context, orgID uuid.UUID) (*OrgDetailResponse, error) {
+	org, err := s.orgs.GetWithStats(ctx, orgID)
+	if err != nil {
+		return nil, fmt.Errorf("get org: %w", err)
+	}
+	if org == nil {
+		return nil, &NotFoundError{Resource: "organization", Message: "organization not found"}
+	}
+
+	return &OrgDetailResponse{
+		ID:            org.ID,
+		Name:          org.Name,
+		Slug:          org.Slug,
+		Plan:          org.Plan,
+		MemberCount:   org.MemberCount,
+		CustomerCount: org.CustomerCount,
+	}, nil
+}
+
+// UpdateCurrent updates the current org settings.
+func (s *OrganizationService) UpdateCurrent(ctx context.Context, orgID uuid.UUID, req UpdateOrgRequest) (*OrgDetailResponse, error) {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, &ValidationError{Field: "name", Message: "organization name is required"}
+	}
+
+	slug := generateSlug(name)
+	baseSlug := slug
+	for i := 1; ; i++ {
+		exists, err := s.orgs.SlugExists(ctx, slug)
+		if err != nil {
+			return nil, fmt.Errorf("check slug: %w", err)
+		}
+		if !exists {
+			break
+		}
+		// Check if it's the same org's slug
+		org, err := s.orgs.GetByID(ctx, orgID)
+		if err != nil {
+			return nil, fmt.Errorf("get org: %w", err)
+		}
+		if org.Slug == slug {
+			break
+		}
+		slug = fmt.Sprintf("%s-%d", baseSlug, i)
+	}
+
+	if err := s.orgs.Update(ctx, orgID, name, slug); err != nil {
+		return nil, fmt.Errorf("update org: %w", err)
+	}
+
+	return s.GetCurrent(ctx, orgID)
+}
+
 // Create creates a new organization and assigns the caller as owner.
 func (s *OrganizationService) Create(ctx context.Context, userID uuid.UUID, req CreateOrgRequest) (*OrgResponse, error) {
 	name := strings.TrimSpace(req.Name)
