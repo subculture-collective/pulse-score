@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import api from "@/lib/api";
+import api, { onboardingApi } from "@/lib/api";
 import { useToast } from "@/contexts/ToastContext";
+import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 
 interface Organization {
@@ -13,7 +14,9 @@ interface Organization {
 export default function OrganizationTab() {
   const [org, setOrg] = useState<Organization | null>(null);
   const [loading, setLoading] = useState(true);
+  const [resetting, setResetting] = useState(false);
   const toast = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     async function fetch() {
@@ -38,6 +41,19 @@ export default function OrganizationTab() {
   }
 
   if (!org) return null;
+
+  async function rerunOnboarding() {
+    setResetting(true);
+    try {
+      await onboardingApi.reset();
+      toast.success("Onboarding reset. Let’s run setup again.");
+      navigate("/onboarding?step=welcome");
+    } catch {
+      toast.error("Failed to reset onboarding.");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   return (
     <div className="max-w-lg space-y-4">
@@ -67,6 +83,22 @@ export default function OrganizationTab() {
           </p>
         </div>
       )}
+
+      <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-4">
+        <h3 className="text-sm font-semibold text-indigo-800">
+          Onboarding
+        </h3>
+        <p className="mt-1 text-sm text-indigo-700">
+          Need to revisit setup? You can restart the onboarding wizard anytime.
+        </p>
+        <button
+          onClick={rerunOnboarding}
+          disabled={resetting}
+          className="mt-3 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+        >
+          {resetting ? "Resetting..." : "Re-run onboarding"}
+        </button>
+      </div>
     </div>
   );
 }

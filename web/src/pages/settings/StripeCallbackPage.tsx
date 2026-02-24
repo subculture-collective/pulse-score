@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { stripeApi } from "@/lib/stripe";
 import BaseLayout from "@/components/BaseLayout";
+import { ONBOARDING_RESUME_STEP_STORAGE_KEY } from "@/contexts/onboarding/constants";
 
 export default function StripeCallbackPage() {
   const [searchParams] = useSearchParams();
@@ -27,7 +28,13 @@ export default function StripeCallbackPage() {
     stripeApi
       .callback(code, state)
       .then(() => {
-        navigate("/settings", { replace: true });
+        const resumeStep = localStorage.getItem(ONBOARDING_RESUME_STEP_STORAGE_KEY);
+        if (resumeStep) {
+          localStorage.removeItem(ONBOARDING_RESUME_STEP_STORAGE_KEY);
+          navigate(`/onboarding?step=${resumeStep}`, { replace: true });
+          return;
+        }
+        navigate("/settings/integrations", { replace: true });
       })
       .catch(() => {
         setError("Failed to complete Stripe connection.");

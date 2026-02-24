@@ -4,16 +4,15 @@ import (
 	"net/http"
 
 	"github.com/onnwee/pulse-score/internal/auth"
-	"github.com/onnwee/pulse-score/internal/service"
 )
 
 // DashboardHandler provides dashboard HTTP endpoints.
 type DashboardHandler struct {
-	dashboardService *service.DashboardService
+	dashboardService dashboardServicer
 }
 
 // NewDashboardHandler creates a new DashboardHandler.
-func NewDashboardHandler(ds *service.DashboardService) *DashboardHandler {
+func NewDashboardHandler(ds dashboardServicer) *DashboardHandler {
 	return &DashboardHandler{dashboardService: ds}
 }
 

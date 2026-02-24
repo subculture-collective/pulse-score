@@ -85,6 +85,32 @@ func (r *IntegrationConnectionRepository) GetByOrgAndProvider(ctx context.Contex
 	return c, nil
 }
 
+// GetByProviderAndExternalID retrieves a connection by provider and external account ID.
+func (r *IntegrationConnectionRepository) GetByProviderAndExternalID(ctx context.Context, provider, externalAccountID string) (*IntegrationConnection, error) {
+	query := `
+		SELECT id, org_id, provider, status, access_token_encrypted, refresh_token_encrypted,
+			token_expires_at, external_account_id, scopes, COALESCE(metadata, '{}'),
+			last_sync_at, COALESCE(last_sync_error, ''), created_at, updated_at
+		FROM integration_connections
+		WHERE provider = $1 AND external_account_id = $2
+		ORDER BY updated_at DESC
+		LIMIT 1`
+
+	c := &IntegrationConnection{}
+	err := r.pool.QueryRow(ctx, query, provider, externalAccountID).Scan(
+		&c.ID, &c.OrgID, &c.Provider, &c.Status, &c.AccessTokenEncrypted, &c.RefreshTokenEncrypted,
+		&c.TokenExpiresAt, &c.ExternalAccountID, &c.Scopes, &c.Metadata,
+		&c.LastSyncAt, &c.LastSyncError, &c.CreatedAt, &c.UpdatedAt,
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("get connection by provider+external id: %w", err)
+	}
+	return c, nil
+}
+
 // UpdateStatus updates the status of a connection.
 func (r *IntegrationConnectionRepository) UpdateStatus(ctx context.Context, id uuid.UUID, status string) error {
 	query := `UPDATE integration_connections SET status = $2 WHERE id = $1`

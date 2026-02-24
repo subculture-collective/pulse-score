@@ -15,6 +15,7 @@ import AlertsTab from "@/pages/settings/AlertsTab";
 import NotificationsTab from "@/pages/settings/NotificationsTab";
 import StripeCallbackPage from "@/pages/settings/StripeCallbackPage";
 import HubSpotCallbackPage from "@/pages/settings/HubSpotCallbackPage";
+import IntercomCallbackPage from "@/pages/settings/IntercomCallbackPage";
 
 const tabs = [
   { path: "organization", label: "Organization" },
@@ -77,6 +78,7 @@ export default function SettingsPage() {
         <Route path="notifications" element={<NotificationsTab />} />
         <Route path="stripe/callback" element={<StripeCallbackPage />} />
         <Route path="hubspot/callback" element={<HubSpotCallbackPage />} />
+        <Route path="intercom/callback" element={<IntercomCallbackPage />} />
         <Route index element={<Navigate to="organization" replace />} />
       </Routes>
     </div>

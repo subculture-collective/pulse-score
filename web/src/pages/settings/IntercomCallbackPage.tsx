@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { hubspotApi } from "@/lib/hubspot";
+import { intercomApi } from "@/lib/intercom";
 import BaseLayout from "@/components/BaseLayout";
 import { ONBOARDING_RESUME_STEP_STORAGE_KEY } from "@/contexts/onboarding/constants";
 
-export default function HubSpotCallbackPage() {
+export default function IntercomCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [error, setError] = useState("");
@@ -16,7 +16,7 @@ export default function HubSpotCallbackPage() {
 
     if (errParam) {
       const desc = searchParams.get("error_description") || errParam;
-      setError(`HubSpot connection failed: ${desc}`);
+      setError(`Intercom connection failed: ${desc}`);
       return;
     }
 
@@ -25,7 +25,7 @@ export default function HubSpotCallbackPage() {
       return;
     }
 
-    hubspotApi
+    intercomApi
       .callback(code, state)
       .then(() => {
         const resumeStep = localStorage.getItem(ONBOARDING_RESUME_STEP_STORAGE_KEY);
@@ -37,7 +37,7 @@ export default function HubSpotCallbackPage() {
         navigate("/settings/integrations", { replace: true });
       })
       .catch(() => {
-        setError("Failed to complete HubSpot connection.");
+        setError("Failed to complete Intercom connection.");
       });
   }, [searchParams, navigate]);
 
@@ -51,8 +51,8 @@ export default function HubSpotCallbackPage() {
             </h2>
             <p className="mt-2 text-sm text-red-700">{error}</p>
             <button
-              onClick={() => navigate("/settings")}
-              className="mt-4 rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+              onClick={() => navigate("/settings/integrations")}
+              className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
             >
               Back to Settings
             </button>
@@ -65,7 +65,7 @@ export default function HubSpotCallbackPage() {
   return (
     <BaseLayout>
       <div className="mx-auto max-w-md text-center">
-        <p className="text-gray-600">Connecting HubSpot...</p>
+        <p className="text-gray-600">Connecting Intercom...</p>
       </div>
     </BaseLayout>
   );

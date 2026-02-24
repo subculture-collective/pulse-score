@@ -12,11 +12,11 @@ import (
 
 // OrganizationHandler provides organization HTTP endpoints.
 type OrganizationHandler struct {
-	orgService *service.OrganizationService
+	orgService organizationServicer
 }
 
 // NewOrganizationHandler creates a new OrganizationHandler.
-func NewOrganizationHandler(orgService *service.OrganizationService) *OrganizationHandler {
+func NewOrganizationHandler(orgService organizationServicer) *OrganizationHandler {
 	return &OrganizationHandler{orgService: orgService}
 }
 

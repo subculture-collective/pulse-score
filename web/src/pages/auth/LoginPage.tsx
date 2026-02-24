@@ -1,6 +1,6 @@
 import { type FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { authApi, type AuthResponse } from "@/lib/api";
+import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { AxiosError } from "axios";
 
