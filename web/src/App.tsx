@@ -1,64 +1,54 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
-import BaseLayout from "@/components/BaseLayout";
+import ErrorBoundary from "@/components/ErrorBoundary";
+import AppLayout from "@/layouts/AppLayout";
 import LoginPage from "@/pages/auth/LoginPage";
 import RegisterPage from "@/pages/auth/RegisterPage";
+import DashboardPage from "@/pages/DashboardPage";
+import CustomersPage from "@/pages/CustomersPage";
+import CustomerDetailPage from "@/pages/CustomerDetailPage";
 import SettingsPage from "@/pages/settings/SettingsPage";
-import StripeCallbackPage from "@/pages/settings/StripeCallbackPage";
-
-function Dashboard() {
-  return (
-    <BaseLayout>
-      <div className="text-center">
-        <h2 className="text-2xl font-semibold text-gray-900">Dashboard</h2>
-        <p className="mt-2 text-gray-600">
-          Welcome to PulseScore. Connect your integrations to get started.
-        </p>
-      </div>
-    </BaseLayout>
-  );
-}
+import NotFoundPage from "@/pages/NotFoundPage";
 
 function App() {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <Routes>
-          {/* Public auth routes */}
-          <Route path="/auth/login" element={<LoginPage />} />
-          <Route path="/auth/register" element={<RegisterPage />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <ErrorBoundary>
+              <Routes>
+                {/* Public auth routes */}
+                <Route path="/auth/login" element={<LoginPage />} />
+                <Route path="/auth/register" element={<RegisterPage />} />
 
-          {/* Protected routes */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute>
-                <SettingsPage />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings/stripe/callback"
-            element={
-              <ProtectedRoute>
-                <StripeCallbackPage />
-              </ProtectedRoute>
-            }
-          />
+                {/* Protected app routes */}
+                <Route
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout />
+                    </ProtectedRoute>
+                  }
+                >
+                  <Route index element={<DashboardPage />} />
+                  <Route path="customers" element={<CustomersPage />} />
+                  <Route
+                    path="customers/:id"
+                    element={<CustomerDetailPage />}
+                  />
+                  <Route path="settings/*" element={<SettingsPage />} />
+                </Route>
 
-          {/* Catch-all */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
+                {/* Catch-all 404 */}
+                <Route path="*" element={<NotFoundPage />} />
+              </Routes>
+            </ErrorBoundary>
+          </ToastProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

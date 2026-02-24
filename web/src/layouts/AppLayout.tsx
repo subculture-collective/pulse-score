@@ -1,0 +1,51 @@
+import { useCallback, useEffect, useState } from "react";
+import { Outlet, useLocation } from "react-router-dom";
+import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
+
+export default function AppLayout() {
+  const [collapsed, setCollapsed] = useState(() => {
+    return localStorage.getItem("sidebar-collapsed") === "true";
+  });
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const location = useLocation();
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  const toggleCollapse = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem("sidebar-collapsed", String(next));
+      return next;
+    });
+  }, []);
+
+  const openMobile = useCallback(() => setMobileOpen(true), []);
+  const closeMobile = useCallback(() => setMobileOpen(false), []);
+
+  return (
+    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+      <Sidebar
+        collapsed={collapsed}
+        onToggleCollapse={() => {
+          if (window.innerWidth < 768) {
+            openMobile();
+          } else {
+            toggleCollapse();
+          }
+        }}
+        mobileOpen={mobileOpen}
+        onCloseMobile={closeMobile}
+      />
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <Header />
+        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}

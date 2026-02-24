@@ -1,26 +1,76 @@
-import BaseLayout from "@/components/BaseLayout";
-import StripeConnectionCard from "@/components/integrations/StripeConnectionCard";
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from "react-router-dom";
+import OrganizationTab from "@/pages/settings/OrganizationTab";
+import ProfileTab from "@/pages/settings/ProfileTab";
+import IntegrationsTab from "@/pages/settings/IntegrationsTab";
+import ScoringTab from "@/pages/settings/ScoringTab";
+import BillingTab from "@/pages/settings/BillingTab";
+import TeamTab from "@/pages/settings/TeamTab";
+import StripeCallbackPage from "@/pages/settings/StripeCallbackPage";
+
+const tabs = [
+  { path: "organization", label: "Organization" },
+  { path: "profile", label: "Profile" },
+  { path: "integrations", label: "Integrations" },
+  { path: "scoring", label: "Scoring" },
+  { path: "billing", label: "Billing" },
+  { path: "team", label: "Team" },
+];
 
 export default function SettingsPage() {
-  return (
-    <BaseLayout>
-      <div className="space-y-6">
-        <div>
-          <h2 className="text-2xl font-semibold text-gray-900">Settings</h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Manage your integrations and account settings.
-          </p>
-        </div>
+  const location = useLocation();
+  const navigate = useNavigate();
 
-        <section>
-          <h3 className="mb-4 text-lg font-medium text-gray-900">
-            Integrations
-          </h3>
-          <div className="space-y-4">
-            <StripeConnectionCard />
-          </div>
-        </section>
+  const currentTab =
+    tabs.find((t) => location.pathname.includes(`/settings/${t.path}`))?.path ??
+    "organization";
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          Settings
+        </h1>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Manage your organization, profile, and integrations.
+        </p>
       </div>
-    </BaseLayout>
+
+      {/* Tabs */}
+      <div className="border-b border-gray-200 dark:border-gray-700">
+        <nav className="-mb-px flex gap-4 overflow-x-auto">
+          {tabs.map((tab) => (
+            <button
+              key={tab.path}
+              onClick={() => navigate(`/settings/${tab.path}`)}
+              className={`whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
+                currentTab === tab.path
+                  ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
+                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab content */}
+      <Routes>
+        <Route path="organization" element={<OrganizationTab />} />
+        <Route path="profile" element={<ProfileTab />} />
+        <Route path="integrations" element={<IntegrationsTab />} />
+        <Route path="scoring" element={<ScoringTab />} />
+        <Route path="billing" element={<BillingTab />} />
+        <Route path="team" element={<TeamTab />} />
+        <Route path="stripe/callback" element={<StripeCallbackPage />} />
+        <Route index element={<Navigate to="organization" replace />} />
+      </Routes>
+    </div>
   );
 }
