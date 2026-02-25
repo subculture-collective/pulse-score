@@ -166,7 +166,7 @@ You've completed the PulseScore quickstart. Here's what you accomplished:
 - **Connect HubSpot or Intercom** — Add CRM and support signals for richer, more accurate scores *(Settings → Integrations)*.
 - **Invite your team** — Bring in your CS or sales team *(Settings → Team)*.
 - **API access** — Embed scores in your own tooling. See the [API Reference](./api-reference.md).
-- **Scoring methodology** — Understand how scores are calculated. See the [Scoring Docs](./scoring.md) *(coming soon)*.
+- **Scoring methodology** — Understand how scores are calculated. See the [Scoring Methodology](./scoring-methodology.md).
 
 ---
 
