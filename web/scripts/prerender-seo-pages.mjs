@@ -227,6 +227,7 @@ function layoutHtml({
   keywords,
   robots = "index, follow",
   structuredData,
+  ogType = "website",
   cssTags,
   scriptTags,
 }) {
@@ -242,7 +243,7 @@ function layoutHtml({
     <meta name="keywords" content="${escapeHtml(keywords.join(", "))}" />
     <meta name="robots" content="${escapeHtml(robots)}" />
     <link rel="canonical" href="${canonical}" />
-    <meta property="og:type" content="website" />
+    <meta property="og:type" content="${escapeHtml(ogType)}" />
     <meta property="og:title" content="${escapeHtml(title)}" />
     <meta property="og:description" content="${escapeHtml(description)}" />
     <meta property="og:url" content="${canonical}" />
@@ -252,7 +253,7 @@ function layoutHtml({
     <meta name="twitter:description" content="${escapeHtml(description)}" />
     <meta name="twitter:image" content="${SITE_ORIGIN}/og-card.svg" />
     <meta name="prerender-source" content="seo-prerender" />
-    <script type="application/ld+json">${JSON.stringify(structuredData)}</script>
+    <script type="application/ld+json">${JSON.stringify(structuredData).replace(/</g, "\\u003c")}</script>
     ${cssTags.join("\n    ")}
     <style>
       :root { color-scheme: light dark; }
@@ -628,6 +629,7 @@ async function main() {
         keywords: [page.keyword, page.entity, "customer health scoring"],
         body: buildDetailBody(page, byFamily),
         structuredData: detailStructuredData,
+        ogType: page.family === "glossary" || page.family === "examples" ? "article" : "website",
         cssTags,
         scriptTags,
       });
