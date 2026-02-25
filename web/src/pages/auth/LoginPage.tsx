@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { AxiosError } from "axios";
+import SeoMeta from "@/components/SeoMeta";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -40,6 +41,12 @@ export default function LoginPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <SeoMeta
+        title="Sign in | PulseScore"
+        description="Sign in to your PulseScore workspace."
+        path="/login"
+        noIndex
+      />
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
         <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">
           Sign in to PulseScore

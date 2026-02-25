@@ -55,7 +55,7 @@ export default function SeoMeta({
       upsertMeta("name", "keywords", keywords.join(", "));
     }
 
-    const robotsValue = noIndex ? "noindex, nofollow" : "index, follow";
+    const robotsValue = noIndex ? "noindex, follow" : "index, follow";
     upsertMeta("name", "robots", robotsValue);
 
     upsertMeta("property", "og:title", title);
