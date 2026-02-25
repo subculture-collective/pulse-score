@@ -1,0 +1,72 @@
+{
+  "templates": {
+    "path": "/templates",
+    "label": "Templates",
+    "hubTitle": "Customer health templates for lean SaaS teams",
+    "hubDescription": "Action-ready customer health templates you can use immediately, then operationalize in PulseScore.",
+    "hero": "Turn retention strategy into execution with practical templates.",
+    "titleTemplate": "{entity} Template",
+    "descriptionTemplate": "Use this {entityLower} template to prioritize risk, define thresholds, and run a repeatable retention workflow for B2B SaaS.",
+    "h1Template": "Free {entity} Template for B2B SaaS"
+  },
+  "integrations": {
+    "path": "/integrations",
+    "label": "Integrations",
+    "hubTitle": "Integration playbooks for customer health scoring",
+    "hubDescription": "Connect billing, CRM, and support signals to unify churn-risk visibility in one workflow.",
+    "hero": "Build a single source of truth for customer health signals.",
+    "titleTemplate": "PulseScore + {entity} Integration",
+    "descriptionTemplate": "Learn how {entity} can feed customer health signals into PulseScore so your team can identify churn risk earlier and act faster.",
+    "h1Template": "PulseScore + {entity}"
+  },
+  "personas": {
+    "path": "/for",
+    "label": "Personas",
+    "hubTitle": "PulseScore by persona and growth stage",
+    "hubDescription": "See how founders, CS, and RevOps teams tailor health scoring to their operating model.",
+    "hero": "Find the exact customer health workflow for your team shape.",
+    "titleTemplate": "Health Scoring for {entity}",
+    "descriptionTemplate": "See how {entityLower} use PulseScore to monitor account health, reduce churn, and focus effort where it drives revenue retention.",
+    "h1Template": "PulseScore for {entity}"
+  },
+  "comparisons": {
+    "path": "/compare",
+    "label": "Comparisons",
+    "hubTitle": "PulseScore comparison guides",
+    "hubDescription": "Balanced comparisons focused on setup speed, pricing, and fit for lean teams.",
+    "hero": "Choose the right customer success stack with clarity, not guesswork.",
+    "titleTemplate": "{entity} Comparison",
+    "descriptionTemplate": "Compare {entity} across pricing, setup speed, integrations, and fit so lean customer success teams can choose with confidence.",
+    "h1Template": "{entity}"
+  },
+  "glossary": {
+    "path": "/glossary",
+    "label": "Glossary",
+    "hubTitle": "Customer success and churn glossary",
+    "hubDescription": "Clear, practical definitions with examples and implementation context for SaaS operators.",
+    "hero": "Learn the language of retention, then apply it in your workflow.",
+    "titleTemplate": "{entity} Definition",
+    "descriptionTemplate": "Understand {entityLower} with clear definitions, formulas, examples, and practical guidance for SaaS customer success workflows.",
+    "h1Template": "What is {entity}?"
+  },
+  "examples": {
+    "path": "/examples",
+    "label": "Examples",
+    "hubTitle": "Real customer health examples",
+    "hubDescription": "Concrete examples of health scores, thresholds, alerts, and intervention patterns.",
+    "hero": "Skip theory—see what good customer health execution looks like.",
+    "titleTemplate": "{entity} Examples",
+    "descriptionTemplate": "Explore {entityLower} with practical patterns, implementation notes, and proven workflows for retention-focused teams.",
+    "h1Template": "{entity}"
+  },
+  "curation": {
+    "path": "/best",
+    "label": "Best-of Guides",
+    "hubTitle": "Curated best-of customer success guides",
+    "hubDescription": "Research-backed shortlists of tools and approaches by team size, stack, and outcomes.",
+    "hero": "Use transparent evaluation criteria to pick the right tools faster.",
+    "titleTemplate": "{entity}",
+    "descriptionTemplate": "Review {entityLower} using transparent criteria: setup complexity, integration depth, pricing, and operational fit for SMB SaaS.",
+    "h1Template": "{entity}"
+  }
+}
