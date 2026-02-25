@@ -1,16 +1,15 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { readFileSync } from "node:fs";
 
 const SITE_ORIGIN = "https://pulsescore.app";
 
-const FAMILY_PATH_PREFIX = {
-  templates: "/templates",
-  integrations: "/integrations",
-  personas: "/for",
-  comparisons: "/compare",
-  glossary: "/glossary",
-  examples: "/examples",
-  curation: "/best",
-};
+const FAMILY_CONFIG = JSON.parse(
+  readFileSync(new URL("../src/content/seo-family-config.json", import.meta.url), "utf8"),
+);
+
+const FAMILY_PATH_PREFIX = Object.fromEntries(
+  Object.entries(FAMILY_CONFIG).map(([family, config]) => [family, config.path]),
+);
 
 const CHANGEFREQ = {
   core: "weekly",
@@ -77,13 +76,7 @@ async function main() {
   const corePaths = [
     "/",
     "/pricing",
-    "/templates",
-    "/integrations",
-    "/for",
-    "/compare",
-    "/glossary",
-    "/examples",
-    "/best",
+    ...Object.values(FAMILY_PATH_PREFIX),
   ];
 
   const byFamily = {
