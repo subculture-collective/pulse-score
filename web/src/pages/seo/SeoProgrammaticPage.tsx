@@ -284,28 +284,6 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
       description: page.description,
       keywords: [page.keyword, "customer health score", "saas retention"],
     },
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      mainEntity: [
-        {
-          "@type": "Question",
-          name: `How should teams use ${page.entity}?`,
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: `Teams should align ${page.entity} to account priorities, clear thresholds, and explicit intervention owners so scoring leads to action rather than passive reporting.`,
-          },
-        },
-        {
-          "@type": "Question",
-          name: "How often should this workflow be reviewed?",
-          acceptedAnswer: {
-            "@type": "Answer",
-            text: "Review weekly for operational changes and monthly for threshold calibration to keep risk detection accurate as customer behavior evolves.",
-          },
-        },
-      ],
-    },
   ];
 
   return (
