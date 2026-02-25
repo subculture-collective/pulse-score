@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Cell,
+  LabelList,
 } from "recharts";
 import api from "@/lib/api";
 import ChartSkeleton from "@/components/skeletons/ChartSkeleton";
@@ -64,6 +65,8 @@ export default function ScoreDistributionChart() {
     );
   }
 
+  const total = data.reduce((sum, d) => sum + d.count, 0);
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
       <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">
@@ -71,27 +74,39 @@ export default function ScoreDistributionChart() {
       </h3>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data}>
-          <XAxis dataKey="range" tick={{ fontSize: 12 }} stroke="#9ca3af" />
+          <XAxis dataKey="range" tick={{ fontSize: 12 }} stroke="var(--chart-axis-stroke)" />
           <YAxis
             tick={{ fontSize: 12 }}
-            stroke="#9ca3af"
+            stroke="var(--chart-axis-stroke)"
             allowDecimals={false}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "var(--color-white, #fff)",
-              borderColor: "#e5e7eb",
+              backgroundColor: "var(--chart-tooltip-bg)",
+              borderColor: "var(--chart-tooltip-border)",
               borderRadius: 8,
+              color: "var(--chart-tooltip-text)",
             }}
             formatter={(value) => [value, "Customers"]}
           />
           <Bar dataKey="count" radius={[4, 4, 0, 0]}>
             {data.map((entry, index) => (
               <Cell
-                key={index}
+                key={entry.range}
                 fill={getBarColor(entry.min_score ?? index * 10)}
               />
             ))}
+            <LabelList
+              dataKey="count"
+              position="top"
+              formatter={(value: unknown) => {
+                const v = value as number;
+                return total > 0
+                  ? `${v} (${Math.round((v / total) * 100)}%)`
+                  : `${v}`;
+              }}
+              style={{ fontSize: 11, fill: "var(--chart-tooltip-text)" }}
+            />
           </Bar>
         </BarChart>
       </ResponsiveContainer>

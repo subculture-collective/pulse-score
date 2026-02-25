@@ -11,6 +11,7 @@ import api from "@/lib/api";
 import ChartSkeleton from "@/components/skeletons/ChartSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { TrendingUp } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface MRRPoint {
   date: string;
@@ -19,14 +20,6 @@ interface MRRPoint {
 
 const ranges = ["7d", "30d", "90d", "1y"] as const;
 type Range = (typeof ranges)[number];
-
-function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
-}
 
 function formatDate(dateStr: string): string {
   const d = new Date(dateStr);
@@ -79,14 +72,26 @@ export default function MRRTrendChart() {
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-          MRR Trend
-        </h3>
+        <div>
+          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+            MRR Trend
+          </h3>
+          {data.length >= 2 && (() => {
+            const netChange = data[data.length - 1].mrr - data[0].mrr;
+            const sign = netChange >= 0 ? "+" : "";
+            return (
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                {sign}{formatCurrency(netChange)} over period
+              </p>
+            );
+          })()}
+        </div>
         <div className="flex gap-1">
           {ranges.map((r) => (
             <button
               key={r}
               onClick={() => setRange(r)}
+              aria-pressed={range === r}
               className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                 range === r
                   ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
@@ -110,20 +115,21 @@ export default function MRRTrendChart() {
             dataKey="date"
             tickFormatter={formatDate}
             tick={{ fontSize: 12 }}
-            stroke="#9ca3af"
+            stroke="var(--chart-axis-stroke)"
           />
           <YAxis
             tickFormatter={(v) => formatCurrency(v)}
             tick={{ fontSize: 12 }}
-            stroke="#9ca3af"
+            stroke="var(--chart-axis-stroke)"
           />
           <Tooltip
             formatter={(value) => [formatCurrency(value as number), "MRR"]}
             labelFormatter={(label) => formatDate(String(label))}
             contentStyle={{
-              backgroundColor: "var(--color-white, #fff)",
-              borderColor: "#e5e7eb",
+              backgroundColor: "var(--chart-tooltip-bg)",
+              borderColor: "var(--chart-tooltip-border)",
               borderRadius: 8,
+              color: "var(--chart-tooltip-text)",
             }}
           />
           <Area
@@ -132,6 +138,7 @@ export default function MRRTrendChart() {
             stroke="#6366f1"
             strokeWidth={2}
             fill="url(#mrrGradient)"
+            activeDot={{ r: 6, strokeWidth: 2 }}
           />
         </AreaChart>
       </ResponsiveContainer>

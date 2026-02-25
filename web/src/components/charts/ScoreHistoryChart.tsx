@@ -81,16 +81,17 @@ export default function ScoreHistoryChart({
             dataKey="date"
             tickFormatter={formatDate}
             tick={{ fontSize: 12 }}
-            stroke="#9ca3af"
+            stroke="var(--chart-axis-stroke)"
           />
-          <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="#9ca3af" />
+          <YAxis domain={[0, 100]} tick={{ fontSize: 12 }} stroke="var(--chart-axis-stroke)" />
           <Tooltip
             formatter={(value) => [value, "Score"]}
             labelFormatter={(label) => formatDate(String(label))}
             contentStyle={{
-              backgroundColor: "var(--color-white, #fff)",
-              borderColor: "#e5e7eb",
+              backgroundColor: "var(--chart-tooltip-bg)",
+              borderColor: "var(--chart-tooltip-border)",
               borderRadius: 8,
+              color: "var(--chart-tooltip-text)",
             }}
           />
           <Line

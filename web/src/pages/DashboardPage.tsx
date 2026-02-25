@@ -5,22 +5,16 @@ import StatCard from "@/components/StatCard";
 import CardSkeleton from "@/components/skeletons/CardSkeleton";
 import ScoreDistributionChart from "@/components/charts/ScoreDistributionChart";
 import MRRTrendChart from "@/components/charts/MRRTrendChart";
+import RiskDistributionChart from "@/components/charts/RiskDistributionChart";
+import AtRiskCustomersTable from "@/components/AtRiskCustomersTable";
 import { Users, AlertTriangle, DollarSign, Activity } from "lucide-react";
+import { formatCurrency } from "@/lib/format";
 
 interface DashboardSummary {
   total_customers: number;
   at_risk_customers: number;
   total_mrr: number;
   average_health_score: number;
-}
-
-function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(cents / 100);
 }
 
 export default function DashboardPage() {
@@ -62,7 +56,7 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950">
+        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950">
           <p className="text-sm text-red-700 dark:text-red-300">
             Failed to load dashboard data.
           </p>
@@ -102,6 +96,14 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <ScoreDistributionChart />
         <MRRTrendChart />
+      </div>
+
+      {/* Risk overview */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <RiskDistributionChart />
+        <div className="lg:col-span-2">
+          <AtRiskCustomersTable />
+        </div>
       </div>
     </div>
   );

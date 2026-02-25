@@ -24,8 +24,6 @@ services:
       dockerfile: Dockerfile
     container_name: pulsescore-api
     restart: unless-stopped
-    ports:
-      - "${PORT:-8080}:8080"
     environment:
       PORT: "8080"
       ENVIRONMENT: production
@@ -37,6 +35,7 @@ services:
         condition: service_healthy
     networks:
       - pulsescore-net
+      - web
 
   web:
     build:
@@ -44,12 +43,10 @@ services:
       dockerfile: Dockerfile
     container_name: pulsescore-web
     restart: unless-stopped
-    ports:
-      - "80:80"
     depends_on:
       - api
     networks:
-      - pulsescore-net
+      - web
 
 volumes:
   pgdata:
@@ -57,3 +54,5 @@ volumes:
 networks:
   pulsescore-net:
     driver: bridge
+  web:
+    external: true

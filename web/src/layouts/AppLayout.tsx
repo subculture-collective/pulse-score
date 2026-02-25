@@ -24,18 +24,12 @@ export default function AppLayout() {
     <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar
         collapsed={collapsed}
-        onToggleCollapse={() => {
-          if (window.innerWidth < 768) {
-            openMobile();
-          } else {
-            toggleCollapse();
-          }
-        }}
+        onToggleCollapse={toggleCollapse}
         mobileOpen={mobileOpen}
         onCloseMobile={closeMobile}
       />
       <div className="flex flex-1 flex-col overflow-hidden">
-        <Header />
+        <Header onOpenMobileNav={openMobile} />
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8">
           <Outlet />
         </main>

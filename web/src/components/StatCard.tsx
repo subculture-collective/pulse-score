@@ -9,6 +9,12 @@ interface StatCardProps {
   icon?: ReactNode;
 }
 
+const trendLabels = {
+  up: "increased",
+  down: "decreased",
+  neutral: "unchanged",
+};
+
 export default function StatCard({
   title,
   value,
@@ -37,7 +43,9 @@ export default function StatCard({
           {title}
         </p>
         {icon && (
-          <span className="text-gray-400 dark:text-gray-500">{icon}</span>
+          <span className="text-gray-400 dark:text-gray-500" aria-hidden="true">
+            {icon}
+          </span>
         )}
       </div>
       <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-100">
@@ -45,8 +53,10 @@ export default function StatCard({
       </p>
       {trend !== undefined && (
         <div className={`mt-2 flex items-center gap-1 text-sm ${trendColor}`}>
-          <TrendIcon className="h-4 w-4" />
+          <TrendIcon className="h-4 w-4" aria-hidden="true" />
           <span>{Math.abs(trend)}%</span>
+          <span className="text-gray-500 dark:text-gray-400">vs last period</span>
+          <span className="sr-only">{trendLabels[trendDirection]}</span>
         </div>
       )}
     </div>
