@@ -6,7 +6,6 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Menu,
   X,
 } from "lucide-react";
 
@@ -86,6 +85,7 @@ export default function Sidebar({
           <button
             onClick={onCloseMobile}
             className="rounded-lg p-1.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+            aria-label="Close navigation"
           >
             <X className="h-5 w-5" />
           </button>
@@ -121,6 +121,7 @@ export default function Sidebar({
             onClick={onToggleCollapse}
             className="flex w-full items-center justify-center rounded-lg p-2 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
             {collapsed ? (
               <ChevronRight className="h-4 w-4" />
@@ -131,14 +132,6 @@ export default function Sidebar({
         </div>
       </aside>
 
-      {/* Mobile hamburger (rendered in header area but controlled here) */}
-      <button
-        onClick={() => (mobileOpen ? onCloseMobile() : onToggleCollapse())}
-        className="fixed left-4 top-4 z-30 rounded-lg bg-white p-2 shadow-md dark:bg-gray-800 md:hidden"
-        aria-label="Toggle navigation"
-      >
-        <Menu className="h-5 w-5 text-gray-700 dark:text-gray-300" />
-      </button>
     </>
   );
 }

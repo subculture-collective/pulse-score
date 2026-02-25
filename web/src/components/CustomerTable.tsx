@@ -1,6 +1,35 @@
 import { useNavigate } from "react-router-dom";
 import HealthScoreBadge from "@/components/HealthScoreBadge";
-import { ChevronUp, ChevronDown, ChevronsUpDown } from "lucide-react";
+import {
+  ChevronUp,
+  ChevronDown,
+  ChevronsUpDown,
+  ShieldCheck,
+  ShieldAlert,
+  ShieldX,
+} from "lucide-react";
+import { formatCurrency, relativeTime } from "@/lib/format";
+
+const riskConfig = {
+  green: {
+    label: "Healthy",
+    Icon: ShieldCheck,
+    className:
+      "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200",
+  },
+  yellow: {
+    label: "At Risk",
+    Icon: ShieldAlert,
+    className:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200",
+  },
+  red: {
+    label: "Critical",
+    Icon: ShieldX,
+    className:
+      "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200",
+  },
+} as const;
 
 export interface Customer {
   id: string;
@@ -18,27 +47,6 @@ interface CustomerTableProps {
   sort: string;
   order: "asc" | "desc";
   onSort: (field: string) => void;
-}
-
-function formatCurrency(cents: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-  }).format(cents / 100);
-}
-
-function relativeTime(dateStr: string): string {
-  if (!dateStr) return "—";
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "Just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 30) return `${days}d ago`;
-  return new Date(dateStr).toLocaleDateString();
 }
 
 const columns = [
@@ -122,17 +130,18 @@ export default function CustomerTable({
                 />
               </td>
               <td className="px-6 py-4">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                    c.risk_level === "green"
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                      : c.risk_level === "yellow"
-                        ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
-                        : "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200"
-                  }`}
-                >
-                  {c.risk_level}
-                </span>
+                {(() => {
+                  const config = riskConfig[c.risk_level];
+                  const Icon = config.Icon;
+                  return (
+                    <span
+                      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.className}`}
+                    >
+                      <Icon className="h-3 w-3" />
+                      {config.label}
+                    </span>
+                  );
+                })()}
               </td>
               <td className="px-6 py-4 text-gray-500 dark:text-gray-400">
                 {relativeTime(c.last_seen_at)}

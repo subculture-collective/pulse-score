@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { notificationsApi, type AppNotification } from "@/lib/api";
+import { relativeTime } from "@/lib/format";
 
 const POLL_INTERVAL = 30_000;
 
@@ -39,6 +40,16 @@ export default function NotificationBell() {
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
+
+  // Close on Escape
+  useEffect(() => {
+    if (!open) return;
+    function handleEscape(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    document.addEventListener("keydown", handleEscape);
+    return () => document.removeEventListener("keydown", handleEscape);
+  }, [open]);
 
   async function toggleOpen() {
     if (!open) {
@@ -83,16 +94,6 @@ export default function NotificationBell() {
       navigate(`/customers/${customerId}`);
       setOpen(false);
     }
-  }
-
-  function timeAgo(dateStr: string): string {
-    const diff = Date.now() - new Date(dateStr).getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return "just now";
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    return `${Math.floor(hrs / 24)}d ago`;
   }
 
   return (
@@ -156,7 +157,7 @@ export default function NotificationBell() {
                         {n.message}
                       </p>
                       <p className="mt-1 text-[10px] text-gray-400 dark:text-gray-500">
-                        {timeAgo(n.created_at)}
+                        {relativeTime(n.created_at)}
                       </p>
                     </div>
                   </div>

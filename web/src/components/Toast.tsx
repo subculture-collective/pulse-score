@@ -54,6 +54,7 @@ export default function Toast({ type, message, onClose }: ToastProps) {
       <button
         onClick={handleClose}
         className={`shrink-0 ${text} hover:opacity-70`}
+        aria-label="Close notification"
       >
         <X className="h-4 w-4" />
       </button>
