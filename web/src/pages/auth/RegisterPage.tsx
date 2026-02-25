@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { authApi } from "@/lib/api";
 import { useAuth } from "@/contexts/AuthContext";
 import { AxiosError } from "axios";
+import SeoMeta from "@/components/SeoMeta";
 
 export default function RegisterPage() {
   const navigate = useNavigate();
@@ -65,6 +66,12 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
+      <SeoMeta
+        title="Create account | PulseScore"
+        description="Create your PulseScore account and start tracking customer health."
+        path="/register"
+        noIndex
+      />
       <div className="w-full max-w-md rounded-lg bg-white p-8 shadow">
         <h1 className="mb-1 text-center text-2xl font-bold text-gray-900">
           Create your account

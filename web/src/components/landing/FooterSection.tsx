@@ -19,6 +19,15 @@ const footerGroups = [
     ],
   },
   {
+    title: "Resources",
+    links: [
+      { label: "Templates", href: "/templates" },
+      { label: "Integrations", href: "/integrations" },
+      { label: "Comparisons", href: "/compare" },
+      { label: "Glossary", href: "/glossary" },
+    ],
+  },
+  {
     title: "Legal",
     links: [
       { label: "Privacy", href: "/privacy" },
@@ -90,7 +99,7 @@ export default function FooterSection() {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-6 md:grid-cols-4">
+          <div className="grid grid-cols-2 gap-6 md:grid-cols-5">
             {footerGroups.map((group) => (
               <div key={group.title}>
                 <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
