@@ -4,7 +4,10 @@ import { readFileSync } from "node:fs";
 const SITE_ORIGIN = "https://pulsescore.app";
 
 const FAMILY_CONFIG = JSON.parse(
-  readFileSync(new URL("../src/content/seo-family-config.json", import.meta.url), "utf8"),
+  readFileSync(
+    new URL("../src/content/seo-family-config.json", import.meta.url),
+    "utf8",
+  ),
 );
 
 const FAMILY_ORDER = [
@@ -37,14 +40,19 @@ const CORE_PAGES = [
     title: "PulseScore Pricing",
     description:
       "Compare PulseScore Free, Growth, and Scale plans with monthly and annual billing options.",
-    keywords: ["pulsescore pricing", "customer success pricing", "b2b saas pricing"],
+    keywords: [
+      "pulsescore pricing",
+      "customer success pricing",
+      "b2b saas pricing",
+    ],
     h1: "Simple pricing for lean customer success teams",
     robots: "index, follow",
   },
   {
     path: "/privacy",
     title: "Privacy Policy | PulseScore",
-    description: "Read the PulseScore privacy policy and data handling practices.",
+    description:
+      "Read the PulseScore privacy policy and data handling practices.",
     keywords: ["privacy policy", "data handling", "pulsescore"],
     h1: "Privacy Policy",
     robots: "noindex, follow",
@@ -94,7 +102,9 @@ function renderTemplate(template, page) {
 }
 
 function buildTitle(page) {
-  return withBrandTitle(renderTemplate(FAMILY_CONFIG[page.family].titleTemplate, page));
+  return withBrandTitle(
+    renderTemplate(FAMILY_CONFIG[page.family].titleTemplate, page),
+  );
 }
 
 function buildDescription(page) {
@@ -118,14 +128,17 @@ function getAssetTags(indexHtml) {
   const scriptTags = [];
 
   const cssRegex = /<link[^>]+rel="stylesheet"[^>]+href="([^"]+)"[^>]*>/g;
-  const scriptRegex = /<script[^>]+type="module"[^>]+src="([^"]+)"[^>]*><\/script>/g;
+  const scriptRegex =
+    /<script[^>]+type="module"[^>]+src="([^"]+)"[^>]*><\/script>/g;
 
   for (const match of indexHtml.matchAll(cssRegex)) {
     cssTags.push(`<link rel="stylesheet" href="${match[1]}">`);
   }
 
   for (const match of indexHtml.matchAll(scriptRegex)) {
-    scriptTags.push(`<script type="module" crossorigin src="${match[1]}"></script>`);
+    scriptTags.push(
+      `<script type="module" crossorigin src="${match[1]}"></script>`,
+    );
   }
 
   return { cssTags, scriptTags };
@@ -412,7 +425,10 @@ async function main() {
   const pages = JSON.parse(pagesRaw);
 
   const distDir = new URL("../dist/", import.meta.url);
-  const distIndexHtml = await readFile(new URL("./index.html", distDir), "utf8");
+  const distIndexHtml = await readFile(
+    new URL("./index.html", distDir),
+    "utf8",
+  );
   const { cssTags, scriptTags } = getAssetTags(distIndexHtml);
 
   const byFamily = {
@@ -542,7 +558,10 @@ async function main() {
         keywords: [page.keyword, page.entity, "customer health scoring"],
         body: buildDetailBody(page, byFamily),
         structuredData: detailStructuredData,
-        ogType: page.family === "glossary" || page.family === "examples" ? "article" : "website",
+        ogType:
+          page.family === "glossary" || page.family === "examples"
+            ? "article"
+            : "website",
         cssTags,
         scriptTags,
       });
