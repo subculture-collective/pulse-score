@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   notificationPreferencesApi,
   alertsApi,
@@ -14,6 +14,9 @@ export default function NotificationsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
+  const mutedSet = useMemo(() => new Set(prefs?.muted_rule_ids ?? []), [
+    prefs?.muted_rule_ids,
+  ]);
 
   useEffect(() => {
     async function load() {
@@ -72,16 +75,19 @@ export default function NotificationsTab() {
   async function toggleMuteRule(ruleId: string) {
     if (!prefs) return;
     setSaving(true);
+
+    const currentlyMuted = mutedSet.has(ruleId);
     const muted = prefs.muted_rule_ids ?? [];
-    const newMuted = muted.includes(ruleId)
+    const newMuted = currentlyMuted
       ? muted.filter((id) => id !== ruleId)
       : [...muted, ruleId];
+
     try {
       const { data } = await notificationPreferencesApi.update({
         muted_rule_ids: newMuted,
       });
       setPrefs(data);
-      toast.success(muted.includes(ruleId) ? "Rule unmuted" : "Rule muted");
+      toast.success(currentlyMuted ? "Rule unmuted" : "Rule muted");
     } catch {
       toast.error("Failed to update preferences");
     } finally {
@@ -179,7 +185,7 @@ export default function NotificationsTab() {
           </p>
           <div className="space-y-3">
             {rules.map((rule) => {
-              const isMuted = (prefs.muted_rule_ids ?? []).includes(rule.id);
+              const isMuted = mutedSet.has(rule.id);
               return (
                 <div
                   key={rule.id}

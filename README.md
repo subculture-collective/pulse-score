@@ -31,7 +31,7 @@ pulse-score/
 
 - **Backend:** Go (net/http)
 - **Frontend:** React 19, TypeScript, Vite, TailwindCSS v4
-- **Database:** PostgreSQL 16
+- **Database:** PostgreSQL 18
 - **Deployment:** Docker, Nginx, VPS
 
 ## Prerequisites
@@ -71,6 +71,43 @@ npm run dev
 ```
 
 The frontend starts on http://localhost:5173.
+
+## Shipping to Production (VPS)
+
+PulseScore ships to production through a manual GitHub Actions workflow:
+
+- Workflow: `.github/workflows/deploy-prod.yml`
+- Trigger: **Actions → Deploy Production → Run workflow**
+- Inputs:
+	- `ref` (branch/tag/SHA to deploy)
+	- `run_migrations` (reserved; currently no-op)
+
+### Required GitHub repository secrets
+
+- `VPS_HOST` — production server hostname/IP
+- `VPS_USER` — SSH user on the VPS
+- `VPS_SSH_KEY` — private SSH key for deploy user
+- `VPS_APP_DIR` — absolute path to repo on VPS (example: `/opt/pulse-score`)
+
+Optional:
+
+- `VPS_PORT` — SSH port (defaults to `22` if omitted by your SSH client/server config)
+
+### What deployment does
+
+The deploy workflow SSHes into your VPS and:
+
+1. Checks out the requested `ref`
+2. Ensures the external Docker network `web` exists
+3. Pulls latest DB image and rebuilds API/Web images with `--pull`
+4. Runs `docker compose -f docker-compose.prod.yml up -d --remove-orphans`
+5. Verifies DB readiness (`pg_isready`) and API health (`/healthz`)
+
+### Manual deploy fallback (on VPS)
+
+If needed, you can run the same deploy logic directly on the server:
+
+`./scripts/deploy/vps-deploy.sh`
 
 ## Development Commands
 

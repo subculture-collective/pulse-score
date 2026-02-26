@@ -9,17 +9,13 @@ import {
   Cell,
   LabelList,
 } from "recharts";
-import api from "@/lib/api";
 import ChartSkeleton from "@/components/skeletons/ChartSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { BarChart3 } from "lucide-react";
-
-interface BucketData {
-  range: string;
-  count: number;
-  min_score: number;
-  max_score: number;
-}
+import {
+  getScoreDistributionCached,
+  type ScoreDistributionBucket,
+} from "@/lib/scoreDistribution";
 
 function getBarColor(minScore: number): string {
   if (minScore >= 70) return "var(--chart-risk-healthy)";
@@ -28,17 +24,17 @@ function getBarColor(minScore: number): string {
 }
 
 export default function ScoreDistributionChart() {
-  const [data, setData] = useState<BucketData[]>([]);
+  const [data, setData] = useState<ScoreDistributionBucket[]>([]);
   const [loading, setLoading] = useState(true);
   const [empty, setEmpty] = useState(false);
 
   useEffect(() => {
     async function fetch() {
       try {
-        const { data: res } = await api.get("/dashboard/score-distribution");
-        const buckets = res.buckets ?? res.distribution ?? res ?? [];
-        if (Array.isArray(buckets) && buckets.length > 0) {
+        const buckets = await getScoreDistributionCached();
+        if (buckets.length > 0) {
           setData(buckets);
+          setEmpty(false);
         } else {
           setEmpty(true);
         }

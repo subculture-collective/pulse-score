@@ -7,17 +7,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import api from "@/lib/api";
 import ChartSkeleton from "@/components/skeletons/ChartSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { PieChart as PieChartIcon } from "lucide-react";
-
-interface BucketData {
-  range: string;
-  count: number;
-  min_score: number;
-  max_score: number;
-}
+import {
+  getScoreDistributionCached,
+  type ScoreDistributionBucket,
+} from "@/lib/scoreDistribution";
 
 interface RiskSegment {
   name: string;
@@ -25,7 +21,7 @@ interface RiskSegment {
   color: string;
 }
 
-function aggregateRisk(buckets: BucketData[]): RiskSegment[] {
+function aggregateRisk(buckets: ScoreDistributionBucket[]): RiskSegment[] {
   let healthy = 0;
   let atRisk = 0;
   let critical = 0;
@@ -55,9 +51,8 @@ export default function RiskDistributionChart() {
   useEffect(() => {
     async function fetch() {
       try {
-        const { data: res } = await api.get("/dashboard/score-distribution");
-        const buckets = res.buckets ?? res.distribution ?? res ?? [];
-        if (Array.isArray(buckets) && buckets.length > 0) {
+        const buckets = await getScoreDistributionCached();
+        if (buckets.length > 0) {
           const agg = aggregateRisk(buckets);
           if (agg.length > 0) {
             setSegments(agg);

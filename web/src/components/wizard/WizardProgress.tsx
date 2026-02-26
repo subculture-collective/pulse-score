@@ -11,11 +11,11 @@ function statusFor(
   index: number,
   stepId: OnboardingStepId,
   currentStepIndex: number,
-  completedSteps: OnboardingStepId[],
-  skippedSteps: OnboardingStepId[],
+  completedSteps: Set<OnboardingStepId>,
+  skippedSteps: Set<OnboardingStepId>,
 ) {
-  if (completedSteps.includes(stepId)) return "completed";
-  if (skippedSteps.includes(stepId)) return "skipped";
+  if (completedSteps.has(stepId)) return "completed";
+  if (skippedSteps.has(stepId)) return "skipped";
   if (index === currentStepIndex) return "active";
   if (index < currentStepIndex) return "past";
   return "upcoming";
@@ -27,6 +27,9 @@ export default function WizardProgress({
   completedSteps,
   skippedSteps,
 }: WizardProgressProps) {
+  const completedStepSet = new Set(completedSteps);
+  const skippedStepSet = new Set(skippedSteps);
+
   return (
     <ol className="mb-6 grid grid-cols-1 gap-3 sm:grid-cols-5">
       {steps.map((step, idx) => {
@@ -34,8 +37,8 @@ export default function WizardProgress({
           idx,
           step.id,
           currentStepIndex,
-          completedSteps,
-          skippedSteps,
+          completedStepSet,
+          skippedStepSet,
         );
 
         const tone =
