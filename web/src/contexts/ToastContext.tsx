@@ -57,15 +57,18 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     [removeToast],
   );
 
-  const success = useCallback((msg: string) => addToast("success", msg), [
-    addToast,
-  ]);
-  const error = useCallback((msg: string) => addToast("error", msg), [
-    addToast,
-  ]);
-  const warning = useCallback((msg: string) => addToast("warning", msg), [
-    addToast,
-  ]);
+  const success = useCallback(
+    (msg: string) => addToast("success", msg),
+    [addToast],
+  );
+  const error = useCallback(
+    (msg: string) => addToast("error", msg),
+    [addToast],
+  );
+  const warning = useCallback(
+    (msg: string) => addToast("warning", msg),
+    [addToast],
+  );
   const info = useCallback((msg: string) => addToast("info", msg), [addToast]);
 
   const value = useMemo<ToastContextValue>(

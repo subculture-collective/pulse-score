@@ -31,7 +31,7 @@ pulse-score/
 
 - **Backend:** Go (net/http)
 - **Frontend:** React 19, TypeScript, Vite, TailwindCSS v4
-- **Database:** PostgreSQL 18
+- **Database:** PostgreSQL 16
 - **Deployment:** Docker, Nginx, VPS
 
 ## Prerequisites
@@ -79,8 +79,8 @@ PulseScore ships to production through a manual GitHub Actions workflow:
 - Workflow: `.github/workflows/deploy-prod.yml`
 - Trigger: **Actions → Deploy Production → Run workflow**
 - Inputs:
-	- `ref` (branch/tag/SHA to deploy)
-	- `run_migrations` (reserved; currently no-op)
+    - `ref` (branch/tag/SHA to deploy)
+    - `run_migrations` (reserved; currently no-op)
 
 ### Required GitHub repository secrets
 
@@ -140,12 +140,12 @@ PulseScore now includes a dedicated Stripe billing domain (separate from Stripe 
 
 - Plan catalog: `free`, `growth`, `scale` (`internal/billing/plans.go`)
 - Protected billing APIs:
-	- `GET /api/v1/billing/subscription`
-	- `POST /api/v1/billing/checkout` (admin)
-	- `POST /api/v1/billing/portal-session` (admin)
-	- `POST /api/v1/billing/cancel` (admin)
+    - `GET /api/v1/billing/subscription`
+    - `POST /api/v1/billing/checkout` (admin)
+    - `POST /api/v1/billing/portal-session` (admin)
+    - `POST /api/v1/billing/cancel` (admin)
 - Public billing webhook:
-	- `POST /api/v1/webhooks/stripe-billing`
+    - `POST /api/v1/webhooks/stripe-billing`
 
 ### Required production billing env vars
 

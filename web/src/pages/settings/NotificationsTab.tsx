@@ -14,9 +14,10 @@ export default function NotificationsTab() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const toast = useToast();
-  const mutedSet = useMemo(() => new Set(prefs?.muted_rule_ids ?? []), [
-    prefs?.muted_rule_ids,
-  ]);
+  const mutedSet = useMemo(
+    () => new Set(prefs?.muted_rule_ids ?? []),
+    [prefs?.muted_rule_ids],
+  );
 
   useEffect(() => {
     async function load() {

@@ -257,28 +257,29 @@ function layoutHtml({
     ${cssTags.join("\n    ")}
     <style>
       :root { color-scheme: light dark; }
-      body { margin: 0; font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; color: #0f172a; }
-      .page { max-width: 1120px; margin: 0 auto; padding: 40px 24px; }
-      .muted { color: #475569; }
-      .chip { display: inline-block; margin-right: 8px; margin-bottom: 8px; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; font-size: 12px; color: #334155; }
-      .hero { border: 1px solid #c7d2fe; border-radius: 16px; padding: 24px; background: #eef2ff; }
-      .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 12px; margin-top: 20px; }
-      .card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #fff; }
-      .card a { color: #1d4ed8; text-decoration: none; }
-      .card a:hover { text-decoration: underline; }
-      .cta { display: inline-block; margin-right: 10px; margin-top: 12px; background: #4f46e5; color: #fff; text-decoration: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; }
-      .cta.secondary { background: transparent; color: #1e293b; border: 1px solid #cbd5e1; }
+      body { margin: 0; }
+      .seo-prerender { font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #fff; color: #0f172a; min-height: 100vh; }
+      .seo-prerender .page { max-width: 1120px; margin: 0 auto; padding: 40px 24px; }
+      .seo-prerender .muted { color: #475569; }
+      .seo-prerender .chip { display: inline-block; margin-right: 8px; margin-bottom: 8px; border: 1px solid #cbd5e1; border-radius: 9999px; padding: 4px 12px; font-size: 12px; color: #334155; }
+      .seo-prerender .hero { border: 1px solid #c7d2fe; border-radius: 16px; padding: 24px; background: #eef2ff; }
+      .seo-prerender .grid { display: grid; grid-template-columns: repeat(auto-fill,minmax(240px,1fr)); gap: 12px; margin-top: 20px; }
+      .seo-prerender .card { border: 1px solid #e2e8f0; border-radius: 14px; padding: 16px; background: #fff; }
+      .seo-prerender .card a { color: #1d4ed8; text-decoration: none; }
+      .seo-prerender .card a:hover { text-decoration: underline; }
+      .seo-prerender .cta { display: inline-block; margin-right: 10px; margin-top: 12px; background: #4f46e5; color: #fff; text-decoration: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; }
+      .seo-prerender .cta.secondary { background: transparent; color: #1e293b; border: 1px solid #cbd5e1; }
       @media (prefers-color-scheme: dark) {
-        body { background: #020617; color: #e2e8f0; }
-        .hero { background: #1e1b4b; border-color: #4338ca; }
-        .card { background: #0f172a; border-color: #1e293b; }
-        .muted, .chip { color: #cbd5e1; border-color: #334155; }
-        .card a, .cta.secondary { color: #c7d2fe; }
+        .seo-prerender { background: #020617; color: #e2e8f0; }
+        .seo-prerender .hero { background: #1e1b4b; border-color: #4338ca; }
+        .seo-prerender .card { background: #0f172a; border-color: #1e293b; }
+        .seo-prerender .muted, .seo-prerender .chip { color: #cbd5e1; border-color: #334155; }
+        .seo-prerender .card a, .seo-prerender .cta.secondary { color: #c7d2fe; }
       }
     </style>
   </head>
   <body>
-    <div id="root">${body}</div>
+    <div id="root"><div class="seo-prerender">${body}</div></div>
     ${scriptTags.join("\n    ")}
   </body>
 </html>

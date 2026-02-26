@@ -48,7 +48,9 @@ function normalizeBuckets(rawBuckets: unknown): ScoreDistributionBucket[] {
   });
 }
 
-export async function getScoreDistributionCached(options?: { force?: boolean }) {
+export async function getScoreDistributionCached(options?: {
+  force?: boolean;
+}) {
   const force = options?.force === true;
 
   if (force) {
@@ -57,11 +59,7 @@ export async function getScoreDistributionCached(options?: { force?: boolean }) 
   }
 
   const now = Date.now();
-  if (
-    !force &&
-    cachedBuckets &&
-    now - lastFetchedAtMs < CACHE_TTL_MS
-  ) {
+  if (!force && cachedBuckets && now - lastFetchedAtMs < CACHE_TTL_MS) {
     return cachedBuckets;
   }
 

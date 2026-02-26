@@ -14,7 +14,9 @@ const ScoringTab = lazy(() => import("@/pages/settings/ScoringTab"));
 const BillingTab = lazy(() => import("@/pages/settings/BillingTab"));
 const TeamTab = lazy(() => import("@/pages/settings/TeamTab"));
 const AlertsTab = lazy(() => import("@/pages/settings/AlertsTab"));
-const NotificationsTab = lazy(() => import("@/pages/settings/NotificationsTab"));
+const NotificationsTab = lazy(
+  () => import("@/pages/settings/NotificationsTab"),
+);
 const StripeCallbackPage = lazy(
   () => import("@/pages/settings/StripeCallbackPage"),
 );

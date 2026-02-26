@@ -174,8 +174,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             applySession(data);
             // Retry original request with new token
             originalRequest.headers = originalRequest.headers ?? {};
-            originalRequest.headers.Authorization =
-              `Bearer ${data.tokens.access_token}`;
+            originalRequest.headers.Authorization = `Bearer ${data.tokens.access_token}`;
             return api.request(originalRequest);
           } catch {
             clearSession();
