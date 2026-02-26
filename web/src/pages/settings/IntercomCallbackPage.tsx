@@ -53,9 +53,11 @@ export default function IntercomCallbackPage() {
           <div className="galdr-card p-6 text-center">
             <div className="galdr-alert-danger p-6">
               <h2 className="text-lg font-semibold text-[var(--galdr-fg)]">
-              Connection Failed
+                Connection Failed
               </h2>
-              <p className="mt-2 text-sm text-[var(--galdr-fg-muted)]">{error}</p>
+              <p className="mt-2 text-sm text-[var(--galdr-fg-muted)]">
+                {error}
+              </p>
               <button
                 onClick={() => navigate("/settings/integrations")}
                 className="galdr-button-primary mt-4 px-4 py-2 text-sm font-medium"
@@ -73,7 +75,9 @@ export default function IntercomCallbackPage() {
     <BaseLayout>
       <div className="mx-auto max-w-md">
         <div className="galdr-card p-6 text-center">
-          <p className="text-sm text-[var(--galdr-fg-muted)]">Connecting Intercom...</p>
+          <p className="text-sm text-[var(--galdr-fg-muted)]">
+            Connecting Intercom...
+          </p>
         </div>
       </div>
     </BaseLayout>

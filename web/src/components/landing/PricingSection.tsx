@@ -69,10 +69,7 @@ export default function PricingSection({
   }, []);
 
   return (
-    <section
-      id="pricing"
-      className="px-6 py-16 sm:px-10 lg:px-14 lg:py-24"
-    >
+    <section id="pricing" className="px-6 py-16 sm:px-10 lg:px-14 lg:py-24">
       <div className="mx-auto max-w-7xl">
         {showStandaloneHeader && (
           <div className="mb-8">

@@ -115,17 +115,11 @@ export default function FooterSection() {
                     return (
                       <li key={link.label}>
                         {isExternal ? (
-                          <a
-                            href={link.href}
-                            className="galdr-link"
-                          >
+                          <a href={link.href} className="galdr-link">
                             {link.label}
                           </a>
                         ) : (
-                          <Link
-                            to={link.href}
-                            className="galdr-link"
-                          >
+                          <Link to={link.href} className="galdr-link">
                             {link.label}
                           </Link>
                         )}

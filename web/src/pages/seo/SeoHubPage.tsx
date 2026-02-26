@@ -56,9 +56,7 @@ export default function SeoHubPage({ family }: SeoHubPageProps) {
 
       <main className="mx-auto max-w-7xl">
         <header className="galdr-card galdr-noise p-8">
-          <p className="galdr-kicker px-3 py-1">
-            {hub.label}
-          </p>
+          <p className="galdr-kicker px-3 py-1">{hub.label}</p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
             {hub.title}
           </h1>
@@ -72,9 +70,7 @@ export default function SeoHubPage({ family }: SeoHubPageProps) {
             <span className="galdr-pill px-3 py-1">
               Intent-driven templates
             </span>
-            <span className="galdr-pill px-3 py-1">
-              Internal-link ready
-            </span>
+            <span className="galdr-pill px-3 py-1">Internal-link ready</span>
           </div>
         </header>
 

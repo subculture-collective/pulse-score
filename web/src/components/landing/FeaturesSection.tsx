@@ -41,10 +41,7 @@ const features = [
 
 export default function FeaturesSection() {
   return (
-    <section
-      id="features"
-      className="px-6 py-16 sm:px-10 lg:px-14 lg:py-24"
-    >
+    <section id="features" className="px-6 py-16 sm:px-10 lg:px-14 lg:py-24">
       <div className="mx-auto max-w-7xl">
         <div className="max-w-3xl">
           <h2 className="text-3xl font-bold tracking-tight text-[var(--galdr-fg)] sm:text-4xl">

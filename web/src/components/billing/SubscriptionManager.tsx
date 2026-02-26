@@ -181,9 +181,7 @@ export default function SubscriptionManager({
       </section>
 
       <section className="galdr-panel p-5">
-        <h4 className="text-sm font-semibold text-[var(--galdr-fg)]">
-          Usage
-        </h4>
+        <h4 className="text-sm font-semibold text-[var(--galdr-fg)]">Usage</h4>
         <div className="mt-4 space-y-4">
           {[
             {

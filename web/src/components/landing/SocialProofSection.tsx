@@ -61,10 +61,7 @@ export default function SocialProofSection() {
 
         <div className="mt-10 grid grid-cols-1 gap-4 lg:grid-cols-3">
           {metrics.map((metric) => (
-            <div
-              key={metric.label}
-              className="galdr-card p-6 text-center"
-            >
+            <div key={metric.label} className="galdr-card p-6 text-center">
               <p className="text-3xl font-extrabold text-[var(--galdr-accent)]">
                 {metric.value}
               </p>

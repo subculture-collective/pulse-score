@@ -100,15 +100,11 @@ function RuleForm({ onSave, onCancel, initial, saving }: RuleFormProps) {
     });
   }
 
-  const inputCls =
-    "galdr-input w-full px-3 py-2 text-sm";
+  const inputCls = "galdr-input w-full px-3 py-2 text-sm";
   const labelCls = "block text-sm font-medium text-[var(--galdr-fg-muted)]";
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="galdr-panel space-y-4 p-4"
-    >
+    <form onSubmit={handleSubmit} className="galdr-panel space-y-4 p-4">
       <div>
         <label className={labelCls}>Name</label>
         <input
@@ -317,10 +313,7 @@ export default function AlertsTab() {
           { label: "Failed", value: stats.failed ?? 0 },
           { label: "Pending", value: stats.pending ?? 0 },
         ].map((s) => (
-          <div
-            key={s.label}
-            className="galdr-panel p-4"
-          >
+          <div key={s.label} className="galdr-panel p-4">
             <p className="text-xs font-medium text-[var(--galdr-fg-muted)]">
               {s.label}
             </p>
@@ -369,10 +362,7 @@ export default function AlertsTab() {
         ) : (
           <div className="space-y-3">
             {rules.map((rule) => (
-              <div
-                key={rule.id}
-                className="galdr-panel"
-              >
+              <div key={rule.id} className="galdr-panel">
                 <div className="flex items-center justify-between p-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-2">

@@ -115,7 +115,12 @@ function buildSections(page: SeoPage): {
     3,
   );
   const evidenceArtifact = pickBySeed(
-    ["renewal cohort outcomes", "risk-resolution lag", "expansion conversion", "retention trend deltas"],
+    [
+      "renewal cohort outcomes",
+      "risk-resolution lag",
+      "expansion conversion",
+      "retention trend deltas",
+    ],
     seed,
     4,
   );
@@ -201,7 +206,8 @@ function buildSections(page: SeoPage): {
         "Ranking tools on popularity alone while ignoring migration and change-management overhead.";
       break;
     default:
-      familyOutcome = "Align teams on a single operating model for health scoring execution.";
+      familyOutcome =
+        "Align teams on a single operating model for health scoring execution.";
       familyImplementation =
         "Track one leading and one lagging indicator to validate intervention quality over time.";
       familyPitfall =
@@ -212,12 +218,22 @@ function buildSections(page: SeoPage): {
   return {
     summary,
     outcomes: [...baseOutcomes, familyOutcome],
-    implementation: [...baseImplementation, familyImplementation, `Keep ${evidenceArtifact} visible in your monthly review so the workflow stays outcome-driven.`],
-    pitfalls: [...basePitfalls, familyPitfall, `Ignoring ${context.hazard} controls turns scoring into noise and slows response quality.`],
+    implementation: [
+      ...baseImplementation,
+      familyImplementation,
+      `Keep ${evidenceArtifact} visible in your monthly review so the workflow stays outcome-driven.`,
+    ],
+    pitfalls: [
+      ...basePitfalls,
+      familyPitfall,
+      `Ignoring ${context.hazard} controls turns scoring into noise and slows response quality.`,
+    ],
   };
 }
 
-export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps) {
+export default function SeoProgrammaticPage({
+  family,
+}: SeoProgrammaticPageProps) {
   const params = useParams<{ slug: string }>();
   const slug = params.slug ?? "";
 
@@ -235,7 +251,8 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
         />
         <h1 className="text-2xl font-bold">Resource not found</h1>
         <p className="mt-2 text-sm text-[var(--galdr-fg-muted)]">
-          This page may have moved. Explore the full {hub.label.toLowerCase()} library instead.
+          This page may have moved. Explore the full {hub.label.toLowerCase()}{" "}
+          library instead.
         </p>
         <Link
           to={hub.path}
@@ -303,10 +320,7 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
             Home
           </Link>
           <span className="mx-2">/</span>
-          <Link
-            to={hub.path}
-            className="galdr-link"
-          >
+          <Link to={hub.path} className="galdr-link">
             {hub.label}
           </Link>
           <span className="mx-2">/</span>
@@ -335,10 +349,7 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
 
         <section className="mt-8 grid gap-4 md:grid-cols-3">
           {sections.outcomes.map((outcome) => (
-            <article
-              key={outcome}
-              className="galdr-panel p-4 text-sm"
-            >
+            <article key={outcome} className="galdr-panel p-4 text-sm">
               {outcome}
             </article>
           ))}
@@ -367,7 +378,9 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
         <section className="galdr-card mt-10 p-6">
           <h2 className="text-xl font-semibold">Operational next step</h2>
           <p className="mt-2 text-sm text-[var(--galdr-fg-muted)]">
-            Start with this workflow in a lightweight template, then connect live billing, CRM, and support signals in PulseScore to automate account prioritization.
+            Start with this workflow in a lightweight template, then connect
+            live billing, CRM, and support signals in PulseScore to automate
+            account prioritization.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
