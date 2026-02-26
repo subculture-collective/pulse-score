@@ -129,7 +129,10 @@ If needed, you can run the same deploy logic directly on the server:
 | Command           | Description              |
 | ----------------- | ------------------------ |
 | `npm run dev`     | Start Vite dev server    |
-| `npm run build`   | Production build         |
+| `npm run seo:validate` | Validate SEO catalog integrity (families/slugs/keywords) |
+| `npm run seo:artifacts` | Generate sitemap artifacts in `web/public/sitemaps/` |
+| `npm run seo:prerender` | Pre-render SEO routes into `web/dist/` |
+| `npm run build`   | Production build + SEO validate/artifacts/prerender |
 | `npm run lint`    | ESLint check             |
 | `npm run format`  | Format with Prettier     |
 | `npm run preview` | Preview production build |

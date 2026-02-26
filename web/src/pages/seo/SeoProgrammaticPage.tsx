@@ -267,6 +267,7 @@ export default function SeoProgrammaticPage({
   const sections = buildSections(page);
   const relatedPages = getRelatedPages(page, 6);
   const crossFamilyHubs = getCrossFamilyHubs(family);
+  const lastUpdated = process.env.REACT_APP_SEO_LAST_UPDATED || undefined;
 
   const structuredData = [
     {
