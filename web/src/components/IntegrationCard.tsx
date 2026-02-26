@@ -22,10 +22,10 @@ export default function IntegrationCard({
   const isActive = status === "connected" || status === "syncing";
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+    <div className="galdr-card p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold capitalize text-gray-900 dark:text-gray-100">
+          <h3 className="text-sm font-semibold capitalize text-[var(--galdr-fg)]">
             {provider}
           </h3>
           <IntegrationStatusBadge status={status} />
@@ -33,7 +33,7 @@ export default function IntegrationCard({
       </div>
 
       {isActive && (
-        <div className="mt-4 space-y-1 text-xs text-gray-500 dark:text-gray-400">
+        <div className="mt-4 space-y-1 text-xs text-[var(--galdr-fg-muted)]">
           <p>Last sync: {relativeTime(lastSyncAt)}</p>
           {customerCount !== undefined && (
             <p>
@@ -49,7 +49,7 @@ export default function IntegrationCard({
             <button
               onClick={onSync}
               disabled={status === "syncing"}
-              className="inline-flex items-center gap-1 rounded-lg border border-gray-300 px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-gray-600 dark:text-gray-300 dark:hover:bg-gray-800"
+              className="galdr-button-secondary inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium disabled:opacity-50"
             >
               <RefreshCw className="h-3 w-3" />
               Sync Now
@@ -58,7 +58,7 @@ export default function IntegrationCard({
           {onDisconnect && (
             <button
               onClick={onDisconnect}
-              className="inline-flex items-center gap-1 rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950"
+              className="galdr-button-danger-outline inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium"
             >
               <Unplug className="h-3 w-3" />
               Disconnect

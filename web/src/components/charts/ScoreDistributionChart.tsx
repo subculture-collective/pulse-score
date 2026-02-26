@@ -9,36 +9,32 @@ import {
   Cell,
   LabelList,
 } from "recharts";
-import api from "@/lib/api";
 import ChartSkeleton from "@/components/skeletons/ChartSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { BarChart3 } from "lucide-react";
-
-interface BucketData {
-  range: string;
-  count: number;
-  min_score: number;
-  max_score: number;
-}
+import {
+  getScoreDistributionCached,
+  type ScoreDistributionBucket,
+} from "@/lib/scoreDistribution";
 
 function getBarColor(minScore: number): string {
-  if (minScore >= 70) return "#22c55e"; // green
-  if (minScore >= 40) return "#eab308"; // yellow
-  return "#ef4444"; // red
+  if (minScore >= 70) return "var(--chart-risk-healthy)";
+  if (minScore >= 40) return "var(--chart-risk-at-risk)";
+  return "var(--chart-risk-critical)";
 }
 
 export default function ScoreDistributionChart() {
-  const [data, setData] = useState<BucketData[]>([]);
+  const [data, setData] = useState<ScoreDistributionBucket[]>([]);
   const [loading, setLoading] = useState(true);
   const [empty, setEmpty] = useState(false);
 
   useEffect(() => {
     async function fetch() {
       try {
-        const { data: res } = await api.get("/dashboard/score-distribution");
-        const buckets = res.buckets ?? res.distribution ?? res ?? [];
-        if (Array.isArray(buckets) && buckets.length > 0) {
+        const buckets = await getScoreDistributionCached();
+        if (buckets.length > 0) {
           setData(buckets);
+          setEmpty(false);
         } else {
           setEmpty(true);
         }
@@ -55,7 +51,7 @@ export default function ScoreDistributionChart() {
 
   if (empty) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+      <div className="galdr-card p-6">
         <EmptyState
           icon={<BarChart3 className="h-12 w-12" />}
           title="No score data yet"
@@ -68,13 +64,17 @@ export default function ScoreDistributionChart() {
   const total = data.reduce((sum, d) => sum + d.count, 0);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
-      <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+    <div className="galdr-card p-6">
+      <h3 className="mb-4 text-sm font-medium text-[var(--galdr-fg)]">
         Health Score Distribution
       </h3>
       <ResponsiveContainer width="100%" height={280}>
         <BarChart data={data}>
-          <XAxis dataKey="range" tick={{ fontSize: 12 }} stroke="var(--chart-axis-stroke)" />
+          <XAxis
+            dataKey="range"
+            tick={{ fontSize: 12 }}
+            stroke="var(--chart-axis-stroke)"
+          />
           <YAxis
             tick={{ fontSize: 12 }}
             stroke="var(--chart-axis-stroke)"

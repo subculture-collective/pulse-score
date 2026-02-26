@@ -7,17 +7,13 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import api from "@/lib/api";
 import ChartSkeleton from "@/components/skeletons/ChartSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { PieChart as PieChartIcon } from "lucide-react";
-
-interface BucketData {
-  range: string;
-  count: number;
-  min_score: number;
-  max_score: number;
-}
+import {
+  getScoreDistributionCached,
+  type ScoreDistributionBucket,
+} from "@/lib/scoreDistribution";
 
 interface RiskSegment {
   name: string;
@@ -25,7 +21,7 @@ interface RiskSegment {
   color: string;
 }
 
-function aggregateRisk(buckets: BucketData[]): RiskSegment[] {
+function aggregateRisk(buckets: ScoreDistributionBucket[]): RiskSegment[] {
   let healthy = 0;
   let atRisk = 0;
   let critical = 0;
@@ -41,9 +37,9 @@ function aggregateRisk(buckets: BucketData[]): RiskSegment[] {
   }
 
   return [
-    { name: "Healthy", value: healthy, color: "#22c55e" },
-    { name: "At Risk", value: atRisk, color: "#eab308" },
-    { name: "Critical", value: critical, color: "#ef4444" },
+    { name: "Healthy", value: healthy, color: "var(--chart-risk-healthy)" },
+    { name: "At Risk", value: atRisk, color: "var(--chart-risk-at-risk)" },
+    { name: "Critical", value: critical, color: "var(--chart-risk-critical)" },
   ].filter((s) => s.value > 0);
 }
 
@@ -55,9 +51,8 @@ export default function RiskDistributionChart() {
   useEffect(() => {
     async function fetch() {
       try {
-        const { data: res } = await api.get("/dashboard/score-distribution");
-        const buckets = res.buckets ?? res.distribution ?? res ?? [];
-        if (Array.isArray(buckets) && buckets.length > 0) {
+        const buckets = await getScoreDistributionCached();
+        if (buckets.length > 0) {
           const agg = aggregateRisk(buckets);
           if (agg.length > 0) {
             setSegments(agg);
@@ -80,7 +75,7 @@ export default function RiskDistributionChart() {
 
   if (empty) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+      <div className="galdr-card p-6">
         <EmptyState
           icon={<PieChartIcon className="h-12 w-12" />}
           title="No risk data yet"
@@ -93,8 +88,8 @@ export default function RiskDistributionChart() {
   const total = segments.reduce((sum, s) => sum + s.value, 0);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
-      <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+    <div className="galdr-card p-6">
+      <h3 className="mb-4 text-sm font-medium text-[var(--galdr-fg)]">
         Risk Distribution
       </h3>
       <ResponsiveContainer width="100%" height={280}>
