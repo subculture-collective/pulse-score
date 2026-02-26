@@ -44,9 +44,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-        Dashboard
-      </h1>
+      <h1 className="text-2xl font-bold text-[var(--galdr-fg)]">Dashboard</h1>
 
       {/* Stat cards */}
       {loading ? (
@@ -56,13 +54,11 @@ export default function DashboardPage() {
           ))}
         </div>
       ) : error ? (
-        <div role="alert" className="rounded-lg border border-red-200 bg-red-50 p-6 text-center dark:border-red-800 dark:bg-red-950">
-          <p className="text-sm text-red-700 dark:text-red-300">
-            Failed to load dashboard data.
-          </p>
+        <div role="alert" className="galdr-alert-danger p-6 text-center">
+          <p className="text-sm">Failed to load dashboard data.</p>
           <button
             onClick={fetchSummary}
-            className="mt-2 text-sm font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            className="galdr-link mt-2 text-sm font-medium"
           >
             Retry
           </button>

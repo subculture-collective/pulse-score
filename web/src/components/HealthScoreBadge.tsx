@@ -12,9 +12,9 @@ const sizeClasses = {
 };
 
 const colorClasses = {
-  green: "bg-green-500 dark:bg-green-600",
-  yellow: "bg-yellow-500 dark:bg-yellow-600",
-  red: "bg-red-500 dark:bg-red-600",
+  green: "bg-[var(--galdr-success)]",
+  yellow: "bg-[var(--galdr-at-risk)]",
+  red: "bg-[var(--galdr-danger)]",
 };
 
 const riskLabels = {
@@ -50,7 +50,7 @@ export default function HealthScoreBadge({
         {score}
       </span>
       {showLabel && (
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+        <span className="text-sm font-medium text-[var(--galdr-fg-muted)]">
           {label}
         </span>
       )}

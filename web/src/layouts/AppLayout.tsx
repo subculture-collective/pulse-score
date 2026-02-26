@@ -21,7 +21,7 @@ export default function AppLayout() {
   const closeMobile = useCallback(() => setMobileOpen(false), []);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-gray-950">
+    <div className="galdr-shell flex h-screen">
       <Sidebar
         collapsed={collapsed}
         onToggleCollapse={toggleCollapse}

@@ -41,9 +41,9 @@ function aggregateRisk(buckets: BucketData[]): RiskSegment[] {
   }
 
   return [
-    { name: "Healthy", value: healthy, color: "#22c55e" },
-    { name: "At Risk", value: atRisk, color: "#eab308" },
-    { name: "Critical", value: critical, color: "#ef4444" },
+    { name: "Healthy", value: healthy, color: "var(--chart-risk-healthy)" },
+    { name: "At Risk", value: atRisk, color: "var(--chart-risk-at-risk)" },
+    { name: "Critical", value: critical, color: "var(--chart-risk-critical)" },
   ].filter((s) => s.value > 0);
 }
 
@@ -80,7 +80,7 @@ export default function RiskDistributionChart() {
 
   if (empty) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+      <div className="galdr-card p-6">
         <EmptyState
           icon={<PieChartIcon className="h-12 w-12" />}
           title="No risk data yet"
@@ -93,8 +93,8 @@ export default function RiskDistributionChart() {
   const total = segments.reduce((sum, s) => sum + s.value, 0);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
-      <h3 className="mb-4 text-sm font-medium text-gray-900 dark:text-gray-100">
+    <div className="galdr-card p-6">
+      <h3 className="mb-4 text-sm font-medium text-[var(--galdr-fg)]">
         Risk Distribution
       </h3>
       <ResponsiveContainer width="100%" height={280}>

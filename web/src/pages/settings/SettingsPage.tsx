@@ -39,16 +39,14 @@ export default function SettingsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          Settings
-        </h1>
-        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+        <h1 className="text-2xl font-bold text-[var(--galdr-fg)]">Settings</h1>
+        <p className="mt-1 text-sm text-[var(--galdr-fg-muted)]">
           Manage your organization, profile, and integrations.
         </p>
       </div>
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
+      <div className="border-b border-[var(--galdr-border)]">
         <nav className="-mb-px flex gap-4 overflow-x-auto">
           {tabs.map((tab) => (
             <button
@@ -56,8 +54,8 @@ export default function SettingsPage() {
               onClick={() => navigate(`/settings/${tab.path}`)}
               className={`whitespace-nowrap border-b-2 px-1 pb-3 text-sm font-medium transition-colors ${
                 currentTab === tab.path
-                  ? "border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400"
-                  : "border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                  ? "border-[var(--galdr-accent)] text-[var(--galdr-accent)]"
+                  : "border-transparent text-[var(--galdr-fg-muted)] hover:text-[var(--galdr-fg)]"
               }`}
             >
               {tab.label}

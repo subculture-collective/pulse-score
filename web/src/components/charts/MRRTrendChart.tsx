@@ -59,7 +59,7 @@ export default function MRRTrendChart() {
 
   if (empty) {
     return (
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+      <div className="galdr-card p-6">
         <EmptyState
           icon={<TrendingUp className="h-12 w-12" />}
           title="No MRR data yet"
@@ -70,21 +70,23 @@ export default function MRRTrendChart() {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+    <div className="galdr-card p-6">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+          <h3 className="text-sm font-medium text-[var(--galdr-fg)]">
             MRR Trend
           </h3>
-          {data.length >= 2 && (() => {
-            const netChange = data[data.length - 1].mrr - data[0].mrr;
-            const sign = netChange >= 0 ? "+" : "";
-            return (
-              <p className="text-xs text-gray-500 dark:text-gray-400">
-                {sign}{formatCurrency(netChange)} over period
-              </p>
-            );
-          })()}
+          {data.length >= 2 &&
+            (() => {
+              const netChange = data[data.length - 1].mrr - data[0].mrr;
+              const sign = netChange >= 0 ? "+" : "";
+              return (
+                <p className="text-xs text-[var(--galdr-fg-muted)]">
+                  {sign}
+                  {formatCurrency(netChange)} over period
+                </p>
+              );
+            })()}
         </div>
         <div className="flex gap-1">
           {ranges.map((r) => (
@@ -94,8 +96,8 @@ export default function MRRTrendChart() {
               aria-pressed={range === r}
               className={`rounded-md px-2 py-1 text-xs font-medium transition-colors ${
                 range === r
-                  ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900 dark:text-indigo-300"
-                  : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                  ? "border border-[color:rgb(139_92_246_/_0.4)] bg-[color:rgb(139_92_246_/_0.2)] text-[var(--galdr-fg)]"
+                  : "text-[var(--galdr-fg-muted)] hover:bg-[color:rgb(139_92_246_/_0.1)]"
               }`}
             >
               {r}
@@ -107,8 +109,16 @@ export default function MRRTrendChart() {
         <AreaChart data={data}>
           <defs>
             <linearGradient id="mrrGradient" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stopColor="#6366f1" stopOpacity={0.3} />
-              <stop offset="100%" stopColor="#6366f1" stopOpacity={0} />
+              <stop
+                offset="0%"
+                stopColor="var(--chart-series-primary)"
+                stopOpacity={0.3}
+              />
+              <stop
+                offset="100%"
+                stopColor="var(--chart-series-primary)"
+                stopOpacity={0}
+              />
             </linearGradient>
           </defs>
           <XAxis
@@ -135,7 +145,7 @@ export default function MRRTrendChart() {
           <Area
             type="monotone"
             dataKey="mrr"
-            stroke="#6366f1"
+            stroke="var(--chart-series-primary)"
             strokeWidth={2}
             fill="url(#mrrGradient)"
             activeDot={{ r: 6, strokeWidth: 2 }}

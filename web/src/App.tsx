@@ -24,7 +24,7 @@ const NotFoundPage = lazy(() => import("@/pages/NotFoundPage"));
 
 function RouteLoadingFallback() {
   return (
-    <div className="flex min-h-[30vh] items-center justify-center text-sm text-gray-500 dark:text-gray-400">
+    <div className="flex min-h-[30vh] items-center justify-center text-sm text-[var(--galdr-fg-muted)]">
       Loading…
     </div>
   );

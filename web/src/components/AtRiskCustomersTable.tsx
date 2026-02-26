@@ -41,14 +41,14 @@ export default function AtRiskCustomersTable() {
   }, []);
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-900">
+    <div className="galdr-card p-6">
       <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+        <h3 className="text-sm font-medium text-[var(--galdr-fg)]">
           At-Risk Customers
         </h3>
         <Link
           to="/customers?sort=health_score&order=asc"
-          className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+          className="galdr-link text-xs font-medium"
         >
           View all
         </Link>
@@ -56,16 +56,16 @@ export default function AtRiskCustomersTable() {
 
       {loading ? (
         <div className="flex justify-center py-8">
-          <Loader2 className="h-5 w-5 animate-spin text-gray-400" />
+          <Loader2 className="h-5 w-5 animate-spin text-[var(--galdr-fg-muted)]" />
         </div>
       ) : customers.length === 0 ? (
-        <p className="py-8 text-center text-sm text-gray-500 dark:text-gray-400">
+        <p className="py-8 text-center text-sm text-[var(--galdr-fg-muted)]">
           No at-risk customers
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
-            <thead className="border-b border-gray-200 text-xs uppercase text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            <thead className="border-b border-[var(--galdr-border)] text-xs uppercase text-[var(--galdr-fg-muted)]">
               <tr>
                 <th className="pb-2 pr-4">Name</th>
                 <th className="pb-2 pr-4">Score</th>
@@ -78,9 +78,9 @@ export default function AtRiskCustomersTable() {
                 <tr
                   key={c.id}
                   onClick={() => navigate(`/customers/${c.id}`)}
-                  className="cursor-pointer border-b border-gray-100 last:border-0 hover:bg-gray-50 dark:border-gray-800 dark:hover:bg-gray-800"
+                  className="cursor-pointer border-b border-[var(--galdr-border)]/70 last:border-0 transition-colors hover:bg-[color:rgb(139_92_246_/_0.08)]"
                 >
-                  <td className="py-3 pr-4 font-medium text-gray-900 dark:text-gray-100">
+                  <td className="py-3 pr-4 font-medium text-[var(--galdr-fg)]">
                     {c.name}
                   </td>
                   <td className="py-3 pr-4">
@@ -91,10 +91,10 @@ export default function AtRiskCustomersTable() {
                       showLabel
                     />
                   </td>
-                  <td className="py-3 pr-4 text-gray-700 dark:text-gray-300">
+                  <td className="py-3 pr-4 text-[var(--galdr-fg)]">
                     {formatCurrency(c.mrr)}
                   </td>
-                  <td className="py-3 text-gray-500 dark:text-gray-400">
+                  <td className="py-3 text-[var(--galdr-fg-muted)]">
                     {relativeTime(c.last_seen_at)}
                   </td>
                 </tr>

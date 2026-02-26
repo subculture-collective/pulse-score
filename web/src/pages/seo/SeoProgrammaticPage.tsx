@@ -226,7 +226,7 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
 
   if (!page) {
     return (
-      <div className="mx-auto flex min-h-[60vh] max-w-3xl flex-col items-center justify-center px-6 text-center">
+      <div className="galdr-shell mx-auto flex min-h-[60vh] max-w-3xl flex-col items-center justify-center px-6 text-center">
         <SeoMeta
           title="Resource not found | PulseScore"
           description="The requested SEO resource could not be found."
@@ -234,12 +234,12 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
           noIndex
         />
         <h1 className="text-2xl font-bold">Resource not found</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
+        <p className="mt-2 text-sm text-[var(--galdr-fg-muted)]">
           This page may have moved. Explore the full {hub.label.toLowerCase()} library instead.
         </p>
         <Link
           to={hub.path}
-          className="mt-6 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+          className="galdr-button-primary mt-6 px-4 py-2 text-sm font-semibold"
         >
           Go to {hub.label}
         </Link>
@@ -287,7 +287,7 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
   ];
 
   return (
-    <div className="min-h-screen bg-white px-6 py-12 text-gray-900 dark:bg-gray-950 dark:text-gray-100 sm:px-10 lg:px-14">
+    <div className="galdr-shell min-h-screen px-6 py-12 text-[var(--galdr-fg)] sm:px-10 lg:px-14">
       <SeoMeta
         title={page.title}
         description={page.description}
@@ -298,14 +298,14 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
       />
 
       <main className="mx-auto max-w-5xl">
-        <nav className="mb-6 text-xs text-gray-500 dark:text-gray-400">
-          <Link to="/" className="hover:text-indigo-600 dark:hover:text-indigo-300">
+        <nav className="mb-6 text-xs text-[var(--galdr-fg-muted)]">
+          <Link to="/" className="galdr-link">
             Home
           </Link>
           <span className="mx-2">/</span>
           <Link
             to={hub.path}
-            className="hover:text-indigo-600 dark:hover:text-indigo-300"
+            className="galdr-link"
           >
             {hub.label}
           </Link>
@@ -313,21 +313,21 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
           <span>{page.entity}</span>
         </nav>
 
-        <header className="rounded-2xl border border-gray-200 bg-gray-50 p-8 dark:border-gray-800 dark:bg-gray-900">
-          <p className="text-xs font-semibold tracking-[0.14em] text-indigo-600 uppercase dark:text-indigo-300">
+        <header className="galdr-card galdr-noise p-8">
+          <p className="galdr-kicker px-3 py-1">
             {hub.label} · {page.intent}
           </p>
           <h1 className="mt-2 text-3xl font-extrabold tracking-tight sm:text-4xl">
             {page.h1}
           </h1>
-          <p className="mt-3 text-sm leading-7 text-gray-700 dark:text-gray-300">
+          <p className="mt-3 text-sm leading-7 text-[var(--galdr-fg-muted)]">
             {sections.summary}
           </p>
-          <div className="mt-4 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-300">
-            <span className="rounded-full border border-gray-300 px-3 py-1 dark:border-gray-700">
+          <div className="mt-4 flex flex-wrap gap-2 text-xs">
+            <span className="galdr-pill px-3 py-1">
               Primary keyword: {page.keyword}
             </span>
-            <span className="rounded-full border border-gray-300 px-3 py-1 dark:border-gray-700">
+            <span className="galdr-pill px-3 py-1">
               Last updated: 2026-02-24
             </span>
           </div>
@@ -337,7 +337,7 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
           {sections.outcomes.map((outcome) => (
             <article
               key={outcome}
-              className="rounded-xl border border-gray-200 bg-white p-4 text-sm dark:border-gray-800 dark:bg-gray-900"
+              className="galdr-panel p-4 text-sm"
             >
               {outcome}
             </article>
@@ -345,18 +345,18 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
         </section>
 
         <section className="mt-10 grid gap-8 lg:grid-cols-2">
-          <div className="rounded-2xl border border-gray-200 p-6 dark:border-gray-800">
+          <div className="galdr-panel p-6">
             <h2 className="text-xl font-semibold">Implementation blueprint</h2>
-            <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-6 text-gray-700 dark:text-gray-300">
+            <ol className="mt-4 list-decimal space-y-2 pl-5 text-sm leading-6 text-[var(--galdr-fg-muted)]">
               {sections.implementation.map((step) => (
                 <li key={step}>{step}</li>
               ))}
             </ol>
           </div>
 
-          <div className="rounded-2xl border border-gray-200 p-6 dark:border-gray-800">
+          <div className="galdr-panel p-6">
             <h2 className="text-xl font-semibold">Common pitfalls to avoid</h2>
-            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-gray-700 dark:text-gray-300">
+            <ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-[var(--galdr-fg-muted)]">
               {sections.pitfalls.map((pitfall) => (
                 <li key={pitfall}>{pitfall}</li>
               ))}
@@ -364,21 +364,21 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
           </div>
         </section>
 
-        <section className="mt-10 rounded-2xl border border-indigo-200 bg-indigo-50/70 p-6 dark:border-indigo-900 dark:bg-indigo-950/30">
+        <section className="galdr-card mt-10 p-6">
           <h2 className="text-xl font-semibold">Operational next step</h2>
-          <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+          <p className="mt-2 text-sm text-[var(--galdr-fg-muted)]">
             Start with this workflow in a lightweight template, then connect live billing, CRM, and support signals in PulseScore to automate account prioritization.
           </p>
           <div className="mt-5 flex flex-wrap gap-3">
             <Link
               to="/register"
-              className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-700"
+              className="galdr-button-primary px-4 py-2 text-sm font-semibold"
             >
               Start free
             </Link>
             <Link
               to="/pricing"
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-semibold hover:bg-white dark:border-gray-700 dark:hover:bg-gray-900"
+              className="galdr-button-secondary px-4 py-2 text-sm font-semibold"
             >
               Compare plans
             </Link>
@@ -392,10 +392,10 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
               <Link
                 key={related.path}
                 to={related.path}
-                className="rounded-xl border border-gray-200 bg-white p-4 text-sm hover:border-indigo-300 hover:text-indigo-700 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-700 dark:hover:text-indigo-300"
+                className="galdr-panel p-4 text-sm transition hover:-translate-y-0.5"
               >
                 <p className="font-semibold">{related.h1}</p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-[var(--galdr-fg-muted)]">
                   {related.keyword}
                 </p>
               </Link>
@@ -410,10 +410,10 @@ export default function SeoProgrammaticPage({ family }: SeoProgrammaticPageProps
               <Link
                 key={relatedHub.path}
                 to={relatedHub.path}
-                className="rounded-xl border border-gray-200 bg-white p-4 text-sm hover:border-indigo-300 hover:text-indigo-700 dark:border-gray-800 dark:bg-gray-900 dark:hover:border-indigo-700 dark:hover:text-indigo-300"
+                className="galdr-panel p-4 text-sm transition hover:-translate-y-0.5"
               >
                 <p className="font-semibold">{relatedHub.label}</p>
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                <p className="mt-1 text-xs text-[var(--galdr-fg-muted)]">
                   {relatedHub.description}
                 </p>
               </Link>
